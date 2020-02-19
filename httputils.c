@@ -77,8 +77,12 @@ int parseRequestData(const char *buffer, struct httpreq_data *request) {
 */
 
 int processHTTPRequest(int socket) {
-	struct httpreq_data request;
-	// Zero out the structure
+    const char *buf, **method, **path;
+    int *minor_version;
+    struct phr_header *headers,
+    size_t len, *method_len, *path_len, last_len, *num_headers;
+    struct httpreq_data request;
+            // Zero out the structure
 	memset(&request, 0, sizeof request);
 
 	char buffer[BUFFER_LEN];
@@ -87,7 +91,7 @@ int processHTTPRequest(int socket) {
 
 	read(socket, buffer, BUFFER_LEN);
 	parseRequestData(buffer, BUFFER_LEN, &request);
-    phr_parse_request(buffer, BUFFER_LEN)
+    phr_parse_request(buf, len, *method, method_len, *path, path_len, minor_version, headers, num_headers, last_len)
 
 	printf("-------BEGIN-----------\n%s\n-------END------\n", buffer);
 	/*printf("------BEGIN----------------\n");
