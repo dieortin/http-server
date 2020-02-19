@@ -1,5 +1,6 @@
 
 #include "httputils.h"
+#include "picohttpparser.h"
 
 #include <stdio.h>
 #include <sys/socket.h>
@@ -86,6 +87,8 @@ int processHTTPRequest(int socket) {
 
 	read(socket, buffer, BUFFER_LEN);
 	parseRequestData(buffer, BUFFER_LEN, &request);
+    phr_parse_request(buffer, BUFFER_LEN)
+
 	printf("-------BEGIN-----------\n%s\n-------END------\n", buffer);
 	/*printf("------BEGIN----------------\n");
 	for (int i = 0; i < strlen(buffer); i++) {
