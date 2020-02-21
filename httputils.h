@@ -25,14 +25,21 @@ struct httpreq_data {
 	char url[MAX_URL];
 
 	char host[MAX_HOST];
-	char path[MAX_PATH];
-	char querystring[MAX_QUERYSTRING];
+    char path[MAX_PATH];
+    char querystring[MAX_QUERYSTRING];
 
-	char httpver[MAX_HTTPVER];
-	char **headers;
-	int num_headers;
+    char httpver[MAX_HTTPVER];
+    char **headers;
+    int num_headers;
 
-	char body[MAX_BODY];
+    char body[MAX_BODY];
+};
+
+struct reqStruct {
+    const char *method, *path;
+    int pret, minor_version;
+    struct phr_header headers[100];
+    size_t method_len, path_len, num_headers;
 };
 
 int processHTTPRequest(int socket);

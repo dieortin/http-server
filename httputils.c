@@ -76,14 +76,22 @@ int parseRequestData(const char *buffer, struct httpreq_data *request) {
 }
 */
 
+int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct reqStruct *request) {
+
+    pret = phr_parse_request(buf, buflen, &request->method, &request->method_len, &request->path, &request->path_len,
+                             &request->minor_version, request->headers, &request->num_headers, prevbuflen);
+
+    return pret; /*-1 = error*/
+}
+
 int processHTTPRequest(int socket) {
     const char *buf, **method, **path;
     int *minor_version;
     struct phr_header *headers,
     size_t len, *method_len, *path_len, last_len, *num_headers;
     struct httpreq_data request;
-            // Zero out the structure
-	memset(&request, 0, sizeof request);
+    // Zero out the structure
+    memset(&request, 0, sizeof request);
 
 	char buffer[BUFFER_LEN];
 	memset(buffer, 0, sizeof buffer);
@@ -91,7 +99,6 @@ int processHTTPRequest(int socket) {
 
 	read(socket, buffer, BUFFER_LEN);
 	parseRequestData(buffer, BUFFER_LEN, &request);
-    phr_parse_request(buf, len, *method, method_len, *path, path_len, minor_version, headers, num_headers, last_len)
 
 	printf("-------BEGIN-----------\n%s\n-------END------\n", buffer);
 	/*printf("------BEGIN----------------\n");

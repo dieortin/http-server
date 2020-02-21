@@ -1,0 +1,4 @@
+server_root = root/
+max_clients = 30
+listen_port = 4096
+server_signature = Server_Version0.2
