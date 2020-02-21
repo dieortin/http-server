@@ -3,6 +3,7 @@
 #define PRACTICA1_HTTPUTILS_H
 
 #include <stdio.h>
+#include "picohttpparser.h"
 
 #define HTTP_VER "HTTP/1.1"
 #define BUFFER_LEN 2048
@@ -37,7 +38,7 @@ struct httpreq_data {
 
 struct reqStruct {
     const char *method, *path;
-    int pret, minor_version;
+    int minor_version;
     struct phr_header headers[100];
     size_t method_len, path_len, num_headers;
 };
