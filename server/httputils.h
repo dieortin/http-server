@@ -20,21 +20,6 @@
 #define MAX_QUERYSTRING 50
 #define MAX_BODY 1024
 
-struct httpreq_data {
-	char method[MAX_METHOD];
-
-	char url[MAX_URL];
-
-	char host[MAX_HOST];
-    char path[MAX_PATH];
-    char querystring[MAX_QUERYSTRING];
-
-    char httpver[MAX_HTTPVER];
-    char **headers;
-    int num_headers;
-
-    char body[MAX_BODY];
-};
 
 struct reqStruct {
     const char *method, *path;

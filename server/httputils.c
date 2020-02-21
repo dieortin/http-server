@@ -52,10 +52,19 @@ int respond(int socket, int code, char *message, char *body) {
 	return 0;
 }
 
-int httpreq_print(FILE *fd, struct httpreq_data *request) {
-	if (!fd || !request) return -1;
+int httpreq_print(FILE *fd, struct reqStruct request) {
+    int i;
+    if (!fd || !request) return -1;
 
-	fprintf(fd, "httpreq_data:{\n\tmethod='%s'\n\turl='%s'\n\thttpver='%s'\n\tbody='%s'\n}\n", request->method,
-	        request->url, request->httpver, request->body);
-	return 0;
+    fprintf(fd,
+            "httpreq_data:{\n\tmethod='%s' len:%d\n\tpath='%s' len:%d\n\tminor_version='%d'\n\tnum_headers='%d'\n}\n",
+            request.method,
+            request.method_len, request.path, request.path_len, request.minor_version, request.num_headers);
+    for (int i = 0; i < request.num_headers; ++i) {
+        fprintf(fd,
+                "headers:{\n\tmethod='%s' len:%d\n\tpath='%s' len:%d\n\tminor_version='%d'\n\tnum_headers='%d'\n}\n",
+                request.method,
+                request.method_len, request.path, request.path_len, request.minor_version, request.num_headers);
+    }
+    return 0;
 }
