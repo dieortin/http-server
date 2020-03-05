@@ -38,23 +38,23 @@ int processHTTPRequest(int socket) {
 }
 
 int respond(int socket, int code, char *message, char *body) {
-	char buffer[BUFFER_LEN];
+    char buffer[BUFFER_LEN];
 
-	// Response header
-	sprintf(buffer, "%s %i %s\r\n", HTTP_VER, code, message);
+    // Response header
+    sprintf(buffer, "%s %i %s\r\n", HTTP_VER, code, message);
 
-	// Empty line before response body
-	sprintf(buffer + strlen(buffer), "\r\n");
+    // Empty line before response body
+    sprintf(buffer + strlen(buffer), "\r\n");
 
-	// Response body
-	sprintf(buffer + strlen(buffer), "%s\r\n", body);
+    // Response body
+    sprintf(buffer + strlen(buffer), "%s\r\n", body);
 
-	send(socket, buffer, strlen(buffer), 0);
+    send(socket, buffer, strlen(buffer), 0);
 
-	printf("--------------------\nResponse sent:\n%s\n", buffer);
-	close(socket);
+    printf("--------------------\nResponse sent:\n%s\n", buffer);
+    close(socket);
 
-	return 0;
+    return 0;
 }
 
 int httpreq_print(FILE *fd, struct reqStruct *request) {
@@ -62,14 +62,15 @@ int httpreq_print(FILE *fd, struct reqStruct *request) {
     if (!fd || !request) return -1;
 
     fprintf(fd,
-            "httpreq_data:{\n\tmethod='%s' len:%zu\n\tpath='%s' len:%zu\n\tminor_version='%d'\n\tnum_headers='%zu'\n}\n",
-            request->method,
-            request->method_len, request->path, request->path_len, request->minor_version, request->num_headers);
+            "httpreq_data:{\n\tmethod='%.*s' \n\tpath='%.*s' \n\tminor_version='%d'\n\tnum_headers='%zu'\n}\n",
+            (int) request->method_len, request->method,
+            (int) request->path_len, request->path, request->minor_version, request->num_headers);
     for (i = 0; i < request->num_headers; ++i) {
         fprintf(fd,
-                "headers:{\n\tmethod='%s' len:%zu\n\tpath='%s' len:%zu\n\tminor_version='%d'\n\tnum_headers='%zu'\n}\n",
-                request->method,
-                request->method_len, request->path, request->path_len, request->minor_version, request->num_headers);
+                "headers:{\n\theader name='%.*s' \n\theader value='%.*s'\n}\n",
+                (int) request->headers->name_len, request->headers->name,
+                (int) request->headers->value_len, request->headers->value);
     }
     return 0;
 }
+
