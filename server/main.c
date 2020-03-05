@@ -11,20 +11,16 @@
 
 #include "constants.h"
 
-
-struct configuration env;
-
-
 int main() {
     printf("INFO: Server started\n");
 
     char currentdir[MAX_BUFFER];
     getcwd(currentdir, MAX_BUFFER);
 
-    struct configuration config;
+    struct configuration env;
 
     assert(strlen(currentdir) + strlen(CONFIG_PATH) < MAX_BUFFER); // Ensure we don't overflow
-    readConfig(strcat(currentdir, CONFIG_PATH), &config);
+    readConfig(strcat(currentdir, CONFIG_PATH), &env);
 
     int socket_descriptor, new_socket;
     int opt = 1;
@@ -47,6 +43,8 @@ int main() {
         perror("Options failed: SOL_REUSEPORT");
         exit(EXIT_FAILURE);
     }
+
+    printf("Starting server on port %i...\n", env.port);
 
     memset(&address, 0, sizeof address);
     address.sin_family = AF_INET;

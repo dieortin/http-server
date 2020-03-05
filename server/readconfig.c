@@ -51,7 +51,7 @@ int readConfig(char *filename, struct configuration *env) {
                     printf("Incorrect nthreads value: doesn't fit in an integer\nTerminating.\n");
                     exit(EXIT_FAILURE);
                 }
-                env->port = (int) nthreads;
+                env->nthreads = (int) nthreads;
             } else {
                 printf("Unrecognized parameter: '%s'\n", parName);
             }
