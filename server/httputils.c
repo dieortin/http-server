@@ -15,21 +15,26 @@ int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct reqStruc
 }
 
 int processHTTPRequest(int socket) {
-    struct httpreq_data request;
+    struct reqStruct request;
+    size_t prevbuflen = 0;
     // Zero out the structure
     memset(&request, 0, sizeof request);
 
-	char buffer[BUFFER_LEN];
-	memset(buffer, 0, sizeof buffer);
+    char buffer[BUFFER_LEN];
+    memset(buffer, 0, sizeof buffer);
 
 
-	read(socket, buffer, BUFFER_LEN);
+    read(socket, buffer, BUFFER_LEN);
 
-	printf("-------BEGIN-----------\n%s\n-------END------\n", buffer);
+    printf("-------BEGIN-----------\n%s\n-------END------\n", buffer);
 
     printf("------END----------------\n");
-	respond(socket, 404, "Not found", "Sorry, the requested resource was not found at this server");
-	return 0;
+
+    parseRequest(buffer, BUFFER_LEN, prevbuflen, &request);
+    httpreq_print(stdout, &request);
+
+    respond(socket, 404, "Not found", "Sorry, the requested resource was not found at this server");
+    return 0;
 }
 
 int respond(int socket, int code, char *message, char *body) {
@@ -52,19 +57,19 @@ int respond(int socket, int code, char *message, char *body) {
 	return 0;
 }
 
-int httpreq_print(FILE *fd, struct reqStruct request) {
+int httpreq_print(FILE *fd, struct reqStruct *request) {
     int i;
     if (!fd || !request) return -1;
 
     fprintf(fd,
-            "httpreq_data:{\n\tmethod='%s' len:%d\n\tpath='%s' len:%d\n\tminor_version='%d'\n\tnum_headers='%d'\n}\n",
-            request.method,
-            request.method_len, request.path, request.path_len, request.minor_version, request.num_headers);
-    for (int i = 0; i < request.num_headers; ++i) {
+            "httpreq_data:{\n\tmethod='%s' len:%zu\n\tpath='%s' len:%zu\n\tminor_version='%d'\n\tnum_headers='%zu'\n}\n",
+            request->method,
+            request->method_len, request->path, request->path_len, request->minor_version, request->num_headers);
+    for (i = 0; i < request->num_headers; ++i) {
         fprintf(fd,
-                "headers:{\n\tmethod='%s' len:%d\n\tpath='%s' len:%d\n\tminor_version='%d'\n\tnum_headers='%d'\n}\n",
-                request.method,
-                request.method_len, request.path, request.path_len, request.minor_version, request.num_headers);
+                "headers:{\n\tmethod='%s' len:%zu\n\tpath='%s' len:%zu\n\tminor_version='%d'\n\tnum_headers='%zu'\n}\n",
+                request->method,
+                request->method_len, request->path, request->path_len, request->minor_version, request->num_headers);
     }
     return 0;
 }

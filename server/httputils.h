@@ -32,6 +32,6 @@ int processHTTPRequest(int socket);
 
 int respond(int socket, int code, char *message, char *body);
 
-int httpreq_print(FILE *fd, struct httpreq_data *request);
+int httpreq_print(FILE *fd, struct reqStruct *request);
 
 #endif //PRACTICA1_HTTPUTILS_H
