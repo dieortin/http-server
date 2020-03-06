@@ -2,15 +2,23 @@
 #include "httputils.h"
 #include "constants.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <sys/socket.h>
 #include <string.h>
 #include <unistd.h>
 
 int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct reqStruct *request) {
-
-    return phr_parse_request(buf, buflen, &request->method, &request->method_len, &request->path, &request->path_len,
-                             &request->minor_version, request->headers, &request->num_headers, prevbuflen);
+    int p;
+    const char *method, *path;
+    size_t method_len, path_len;
+    p = phr_parse_request(buf, buflen, &method, &method_len, &path, &path_len,
+                          &request->minor_version, request->headers, &request->num_headers, prevbuflen);
+    request->method = malloc(method_len + 1);
+    request->path = malloc(path_len + 1);
+    strncpy(request->method, method, method_len);
+    strncpy(request->path, path, path_len);
+    return p;
 }
 
 int processHTTPRequest(int socket) {
@@ -32,7 +40,17 @@ int processHTTPRequest(int socket) {
     parseRequest(buffer, BUFFER_LEN, prevbuflen, &request);
     httpreq_print(stdout, &request);
 
-    respond(socket, 404, "Not found", "Sorry, the requested resource was not found at this server");
+    if (strcmp(request.method, GET) == 0) {
+        resolution_get(socket, &request);
+    } else if (strcmp(request.method, POST) == 0) {
+        resolution_post(socket, &request);
+    } else if (strcmp(request.method, OPTIONS) == 0) {
+        resolution_options(socket, &request);
+    } else {
+        respond(socket, METHOD_NOT_ALLOWED, "Not supported", "Sorry, bad request");
+    }
+
+
     return 0;
 }
 
@@ -71,14 +89,43 @@ int httpreq_print(FILE *fd, struct reqStruct *request) {
     if (!fd || !request) return -1;
 
     fprintf(fd,
-            "httpreq_data:{\n\tmethod='%.*s' \n\tpath='%.*s' \n\tminor_version='%d'\n\tnum_headers='%zu'\n}\n",
-            (int) request->method_len, request->method,
-            (int) request->path_len, request->path, request->minor_version, request->num_headers);
+            "httpreq_data:{\n\tmethod='%s' \n\tpath='%s' \n\tminor_version='%d'\n\tnum_headers='%zu'\n}\n",
+            request->method,
+            request->path, request->minor_version, request->num_headers);
     for (i = 0; i < request->num_headers; ++i) {
         fprintf(fd,
                 "headers:{\n\theader name='%.*s' \n\theader value='%.*s'\n}\n",
                 (int) request->headers->name_len, request->headers->name,
                 (int) request->headers->value_len, request->headers->value);
     }
+    return 0;
+}
+
+int resolution_get(int socket, struct reqStruct *request) {
+    char webpath[300];
+    char cwd[200];
+    getcwd(cwd, 200);
+
+    strcpy(webpath, cwd);
+    strcat(webpath, "/www");
+    strcat(webpath, request->path);
+    printf("%s", webpath);
+
+    //si el archivo existe
+    if (access(webpath, F_OK) == 0) {
+        respond(socket, OK, "Solved", "Response");
+    } else if (errno == ENOENT) {  //si el archivo no existe
+        respond(socket, NOT_FOUND, "Not found", "Sorry, the requested resource was not found at this server");
+    } else {   //otro error
+        respond(socket, INTERNAL_ERROR, "Not found", "Sorry, the requested resource can't be accessed");
+    }
+    return 0;
+}
+
+int resolution_post(int socket, struct reqStruct *request) {
+    return 0;
+}
+
+int resolution_options(int socket, struct reqStruct *request) {
     return 0;
 }
