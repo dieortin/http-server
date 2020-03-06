@@ -17,7 +17,7 @@ struct reqStruct {
 
 int processHTTPRequest(int socket);
 
-int respond(int socket, int code, char *message, char *body);
+int respond(int socket, unsigned int code, char *message, char *body);
 
 int httpreq_print(FILE *fd, struct reqStruct *request);
 

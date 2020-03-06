@@ -1,12 +1,11 @@
 
 #include "httputils.h"
+#include "constants.h"
 
 #include <stdio.h>
 #include <sys/socket.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdlib.h>
-
 
 int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct reqStruct *request) {
 
@@ -37,21 +36,31 @@ int processHTTPRequest(int socket) {
     return 0;
 }
 
-int respond(int socket, int code, char *message, char *body) {
+int respond(int socket, unsigned int code, char *message, char *body) {
     char buffer[BUFFER_LEN];
 
     // Response header
-    sprintf(buffer, "%s %i %s\r\n", HTTP_VER, code, message);
+    if (message) {
+	    sprintf(buffer, "%s %i %s\r\n", HTTP_VER, code, message);
+    } else {
+    	sprintf(buffer, "%s %i\r\n", HTTP_VER, code);
+    }
 
     // Empty line before response body
     sprintf(buffer + strlen(buffer), "\r\n");
 
     // Response body
-    sprintf(buffer + strlen(buffer), "%s\r\n", body);
+    if (body) {
+	    sprintf(buffer + strlen(buffer), "%s\r\n", body);
+    } else {
+	    sprintf(buffer + strlen(buffer), "\r\n");
+    }
 
     send(socket, buffer, strlen(buffer), 0);
 
-    printf("--------------------\nResponse sent:\n%s\n", buffer);
+    if (DEBUG) {
+    	printf("--------------------\nResponse sent:\n%s\n", buffer);
+    }
     close(socket);
 
     return 0;
@@ -73,4 +82,3 @@ int httpreq_print(FILE *fd, struct reqStruct *request) {
     }
     return 0;
 }
-
