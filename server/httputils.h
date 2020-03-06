@@ -8,19 +8,6 @@
 #define HTTP_VER "HTTP/1.1"
 #define BUFFER_LEN 2048
 
-// Como máximo 7 caracteres de método (ej. OPTIONS) y caracter de fin de cadena
-#define MAX_METHOD 8
-
-#define MAX_HTTPVER 10
-
-// Arbitrarios
-#define MAX_URL 150
-#define MAX_HOST 50
-#define MAX_PATH 50
-#define MAX_QUERYSTRING 50
-#define MAX_BODY 1024
-
-
 struct reqStruct {
     const char *method, *path;
     int minor_version;
