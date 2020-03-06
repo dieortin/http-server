@@ -3,8 +3,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <netinet/in.h>
-#include <assert.h>
-#include <zconf.h>
 
 #include "httputils.h"
 #include "readconfig.h"
@@ -14,13 +12,8 @@
 int main() {
     printf("INFO: Server started\n");
 
-    char currentdir[MAX_BUFFER];
-    getcwd(currentdir, MAX_BUFFER);
-
     struct configuration env;
-
-    assert(strlen(currentdir) + strlen(CONFIG_PATH) < MAX_BUFFER); // Ensure we don't overflow
-    readConfig(strcat(currentdir, CONFIG_PATH), &env);
+    readConfig(CONFIG_PATH, &env);
 
     int socket_descriptor, new_socket;
     int opt = 1;

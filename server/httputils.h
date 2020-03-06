@@ -9,10 +9,10 @@
 #define BUFFER_LEN 2048
 
 struct reqStruct {
-    const char *method, *path;
-    int minor_version;
-    struct phr_header headers[100];
-    size_t method_len, path_len, num_headers;
+	const char *method, *path;
+	int minor_version;
+	struct phr_header headers[100];
+	size_t method_len, path_len, num_headers;
 };
 
 int processHTTPRequest(int socket);
@@ -26,6 +26,7 @@ typedef enum _HTTP_SUCCESS {
 	CREATED = 201,
 	NO_CONTENT = 204,
 } HTTP_SUCCESS;
+
 typedef enum _HTTP_CLIENT_ERROR {
 	BAD_REQUEST = 400,
 	UNAUTHORIZED = 401,

@@ -8,9 +8,9 @@
 #include "constants.h"
 
 struct configuration {
-    int port;
+    unsigned int port;
     char webroot[MAX_CONFIG_STR];
-    int nthreads;
+    unsigned int nthreads;
 };
 
 int readConfig(char *filename, struct configuration *env);

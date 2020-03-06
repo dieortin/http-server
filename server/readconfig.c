@@ -8,6 +8,8 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
+#include <zconf.h>
+#include <assert.h>
 
 
 #define PARAM_PORT "PORT"
@@ -17,7 +19,11 @@
 int readConfig(char *filename, struct configuration *env) {
     if (!filename) return -1;
 
-    FILE *configFile = fopen(filename, "r");
+	char currentdir[MAX_BUFFER];
+	getcwd(currentdir, MAX_BUFFER);
+	assert(strlen(currentdir) + strlen(CONFIG_PATH) + strlen(filename) < MAX_BUFFER); // Ensure we don't overflow
+
+    FILE *configFile = fopen(strcat(currentdir, filename), "r");
     if (!configFile) {
         printf("Error while opening the configuration file at %s: %s\n", filename, strerror(errno));
         exit(EXIT_FAILURE);
@@ -38,7 +44,7 @@ int readConfig(char *filename, struct configuration *env) {
                     printf("Incorrect port value: doesn't fit in an integer\nTerminating.\n");
                     exit(EXIT_FAILURE);
                 }
-                env->port = (int) port;
+                env->port = (unsigned int) port;
             } else if (strcmp(parName, PARAM_WEBROOT) == 0) {
                 if ((strlen(parValue) + 1) > MAX_BUFFER) {
                     printf("Parameter %s is too long.\nTerminating.\n", parName);
@@ -51,7 +57,7 @@ int readConfig(char *filename, struct configuration *env) {
                     printf("Incorrect nthreads value: doesn't fit in an integer\nTerminating.\n");
                     exit(EXIT_FAILURE);
                 }
-                env->nthreads = (int) nthreads;
+                env->nthreads = (unsigned int) nthreads;
             } else {
                 printf("Unrecognized parameter: '%s'\n", parName);
             }
