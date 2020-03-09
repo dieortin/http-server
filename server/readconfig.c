@@ -15,6 +15,7 @@
 #define PARAM_PORT "PORT"
 #define PARAM_WEBROOT "WEBROOT"
 #define PARAM_NTHREADS "NTHREADS"
+#define PARAM_QUEUE_SIZE "QUEUE_SIZE"
 
 int readConfig(char *filename, struct configuration *env) {
     if (!filename) return -1;
@@ -53,11 +54,18 @@ int readConfig(char *filename, struct configuration *env) {
                 strcpy(env->webroot, parValue);
             } else if (strcmp(parName, PARAM_NTHREADS) == 0) {
                 long nthreads = strtol(parValue, NULL, 10);
-                if (nthreads > INT_MAX) { // Check if the port value can be cast to integer safely
+                if (nthreads > INT_MAX) { // Check if the thread num value can be cast to integer safely
                     printf("Incorrect nthreads value: doesn't fit in an integer\nTerminating.\n");
                     exit(EXIT_FAILURE);
                 }
                 env->nthreads = (unsigned int) nthreads;
+            } else if (strcmp(parName, PARAM_QUEUE_SIZE) == 0) {
+	            long queue_size = strtol(parValue, NULL, 10);
+	            if (queue_size > INT_MAX) { // Check if the queue size value can be cast to integer safely
+		            printf("Incorrect queue_size value: doesn't fit in an integer\nTerminating.\n");
+		            exit(EXIT_FAILURE);
+	            }
+	            env->queue_size = (int) queue_size;
             } else {
                 printf("Unrecognized parameter: '%s'\n", parName);
             }

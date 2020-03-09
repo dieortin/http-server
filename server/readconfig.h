@@ -11,6 +11,7 @@ struct configuration {
     unsigned int port;
     char webroot[MAX_CONFIG_STR];
     unsigned int nthreads;
+    int queue_size;
 };
 
 int readConfig(char *filename, struct configuration *env);
