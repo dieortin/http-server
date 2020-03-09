@@ -1,11 +1,10 @@
-
-#include "httputils.h"
-#include "constants.h"
-
 #include <stdio.h>
 #include <sys/socket.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "httputils.h"
+#include "constants.h"
 
 int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct reqStruct *request) {
 
@@ -13,7 +12,7 @@ int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct reqStruc
                              &request->minor_version, request->headers, &request->num_headers, prevbuflen);
 }
 
-int processHTTPRequest(int socket) {
+void processHTTPRequest(int socket) {
     struct reqStruct request;
     size_t prevbuflen = 0;
     // Zero out the structure
@@ -33,7 +32,6 @@ int processHTTPRequest(int socket) {
     httpreq_print(stdout, &request);
 
     respond(socket, 404, "Not found", "Sorry, the requested resource was not found at this server");
-    return 0;
 }
 
 int respond(int socket, unsigned int code, char *message, char *body) {

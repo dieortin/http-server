@@ -15,7 +15,7 @@ struct reqStruct {
 	size_t method_len, path_len, num_headers;
 };
 
-int processHTTPRequest(int socket);
+void processHTTPRequest(int socket);
 
 int respond(int socket, unsigned int code, char *message, char *body);
 
