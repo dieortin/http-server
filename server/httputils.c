@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct reqStruct *request) {
     int p;
@@ -113,7 +114,22 @@ int resolution_get(int socket, struct reqStruct *request) {
 
     //si el archivo existe
     if (access(webpath, F_OK) == 0) {
-        respond(socket, OK, "Solved", "Response");
+        char *buffer = 0;
+        long length;
+        FILE *f = fopen(webpath, "rb");
+
+        if (f) {
+            fseek(f, 0, SEEK_END);
+            length = ftell(f);
+            fseek(f, 0, SEEK_SET);
+            buffer = malloc(length);
+            if (buffer) {
+                fread(buffer, 1, length, f);
+            }
+            fclose(f);
+        }
+
+        respond(socket, OK, "Solved", buffer);
     } else if (errno == ENOENT) {  //si el archivo no existe
         respond(socket, NOT_FOUND, "Not found", "Sorry, the requested resource was not found at this server");
     } else {   //otro error
