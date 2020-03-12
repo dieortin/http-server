@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include "picohttpparser.h"
+#include "server.h"
 
 #define HTTP_VER "HTTP/1.1"
 #define BUFFER_LEN 2048
@@ -15,7 +16,7 @@ struct reqStruct {
 	size_t method_len, path_len, num_headers;
 };
 
-void processHTTPRequest(int socket);
+SERVERCMD processHTTPRequest(int socket);
 
 int respond(int socket, unsigned int code, char *message, char *body);
 

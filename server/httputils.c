@@ -12,26 +12,28 @@ int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct reqStruc
                              &request->minor_version, request->headers, &request->num_headers, prevbuflen);
 }
 
-void processHTTPRequest(int socket) {
-    struct reqStruct request;
-    size_t prevbuflen = 0;
-    // Zero out the structure
-    memset(&request, 0, sizeof request);
+SERVERCMD processHTTPRequest(int socket) {
+	struct reqStruct request;
+	size_t prevbuflen = 0;
+	// Zero out the structure
+	memset(&request, 0, sizeof request);
 
-    char buffer[BUFFER_LEN];
-    memset(buffer, 0, sizeof buffer);
+	char buffer[BUFFER_LEN];
+	memset(buffer, 0, sizeof buffer);
 
 
-    read(socket, buffer, BUFFER_LEN);
+	read(socket, buffer, BUFFER_LEN);
 
-    printf("-------BEGIN-----------\n%s\n-------END------\n", buffer);
+	printf("-------BEGIN-----------\n%s\n-------END------\n", buffer);
 
-    printf("------END----------------\n");
+	printf("------END----------------\n");
 
-    parseRequest(buffer, BUFFER_LEN, prevbuflen, &request);
-    httpreq_print(stdout, &request);
+	parseRequest(buffer, BUFFER_LEN, prevbuflen, &request);
+	httpreq_print(stdout, &request);
 
-    respond(socket, 404, "Not found", "Sorry, the requested resource was not found at this server");
+	respond(socket, 404, "Not found", "Sorry, the requested resource was not found at this server");
+
+	return CONTINUE; /// Tell the server to continue accepting requests
 }
 
 int respond(int socket, unsigned int code, char *message, char *body) {

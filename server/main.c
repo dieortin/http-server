@@ -4,10 +4,10 @@
 
 int main() {
 	Server *server = server_init(CONFIG_PATH, processHTTPRequest);
-
-	server_start(server);
-
-	server_free(server);
+	if (server) {
+		server_start(server);
+		server_free(server);
+	}
 }
 
 

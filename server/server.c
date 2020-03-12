@@ -1,7 +1,9 @@
 /**
  * @file server.c
- * Contains the implementation of the functions for #Server operation, as well as some
+ * @brief Contains the implementation of the functions for #Server operation, as well as some
  * private utility functions
+ * @author Diego Ortín Fernández
+ * @date 7 March 2020
  */
 
 #include <stdlib.h>
@@ -25,19 +27,23 @@
 void server_log (const char *format, ...);
 
 /**
- * This structure stores all the data of the server. Most of it is filled in when the #server_init function
+ * @struct _server
+ * @brief Stores all the data of the server. Most of it is filled in when the #server_init function
  * is called, and the rest when #server_start is called.
  */
 struct _server {
-	struct configuration config; ///< A #configuration structure containing the user defined parameters
+	//struct configuration config; ///< A #configuration structure containing the user defined parameters
+	const struct config_param *config; ///< Dictionary which contains the user defined parameters for the server
 	struct sockaddr_in address; ///< A #sockaddr_in structure containing the parameters for socket binding
 	int addrlen; ///< Contains the length of the #_server.address structure
 	int options; ///< Contains the options applied to the socket
 	int socket_descriptor; ///< Stores the main socket descriptor where the #Server is listening
-	void (*request_processor)(int socket); ///< The function to be called each time a new connection is accepted
+	SERVERCMD (*request_processor)(int socket); ///< The function to be called each time a new connection is accepted.
+	///< Depending on the value returned by it, the server will continue
+	///< accepting requests or stop doing so.
 };
 
-Server *server_init (char *config_filename, void (*request_processor)(int socket)) {
+Server *server_init(char *config_filename, SERVERCMD (*request_processor)(int)) {
 	server_log("Initializing server...");
 
 	if (!config_filename) {
@@ -54,7 +60,9 @@ Server *server_init (char *config_filename, void (*request_processor)(int socket
 
 	srv->request_processor = request_processor;
 
-	if (readConfig(config_filename, &srv->config) != EXIT_SUCCESS) {
+	srv->config = NULL;
+
+	if (parseConfig(config_filename, &srv->config) != EXIT_SUCCESS) {
 		server_log("ERROR: couldn't read the configuration file %s", config_filename);
 		free(srv);
 		return NULL;
@@ -63,8 +71,15 @@ Server *server_init (char *config_filename, void (*request_processor)(int socket
 	// Initialize the address field for binding
 	memset(&srv->address, 0, sizeof srv->address);
 	srv->address.sin_family = AF_INET;
-	srv->address.sin_addr.s_addr = htonl(INADDR_ANY);
-	srv->address.sin_port = htons(srv->config.port);
+	srv->address.sin_addr.s_addr = htonl(INADDR_ANY); // NOLINT(hicpp-signed-bitwise)
+
+	int port, ret;
+	if ((ret = config_getparam_int(&srv->config, PARAMS_PORT, &port)) != 0) {
+		server_log("ERROR: could not fetch port value (%s)\n", readconfig_perror(ret));
+		free(srv);
+		return NULL;
+	}
+	srv->address.sin_port = htons(port); // NOLINT(hicpp-signed-bitwise)
 
 	srv->addrlen = sizeof(srv->address);
 
@@ -82,7 +97,12 @@ STATUS server_start (Server *srv) {
 	if (!srv) return ERROR;
 
 	server_log("Starting server...");
-	server_log("Configuration options are:\n\tport %u\n\twebroot [%s]", srv->config.port, srv->config.webroot);
+
+	int port;
+	char *webroot;
+	config_getparam_int(&srv->config, PARAMS_PORT, &port);
+	config_getparam_str(&srv->config, PARAMS_WEBROOT, &webroot);
+	server_log("Configuration options are:\n\tport %u\n\twebroot [%s]", port, webroot);
 
 	if ((srv->socket_descriptor = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
 		server_log("Socket creation failed");
@@ -102,7 +122,7 @@ STATUS server_start (Server *srv) {
 		return ERROR;
 	}
 
-	server_log("Starting server on port %i...", srv->config.port);
+	server_log("Starting server on port %i...", port);
 
 	if (bind(srv->socket_descriptor, (struct sockaddr *) &srv->address, sizeof(srv->address)) < 0) {
 		server_log("Bind failed");
@@ -110,27 +130,33 @@ STATUS server_start (Server *srv) {
 		return ERROR;
 	}
 
-	if (listen(srv->socket_descriptor, srv->config.queue_size) < 0) {
+	int queue_size;
+	config_getparam_int_n(&srv->config, USERPARAMS_META[PARAMS_QUEUE_SIZE].name, &queue_size);
+	if (listen(srv->socket_descriptor, queue_size) < 0) {
 		server_log("Listen failed");
 		perror("Listen failed");
 		return ERROR;
 	}
 
-	server_log("Server listening on port %i", srv->config.port);
+	server_log("Server listening on port %i", port);
 
-	while(1) {
+	while (1) {
 		int new_socket;
-		if ((new_socket = accept(srv->socket_descriptor, (struct sockaddr *) &srv->address, (socklen_t * ) &srv->addrlen)) == 0) {
+		if ((new_socket = accept(srv->socket_descriptor, (struct sockaddr *) &srv->address,
+		                         (socklen_t *) &srv->addrlen)) == 0) {
 			server_log("Accept failed");
 			perror(("Accept failed"));
 			return ERROR;
 		} else {
-			(*(srv->request_processor))(new_socket);
+			if ((*(srv->request_processor))(new_socket) == STOP) {
+				break;
+			}
 		}
 	}
 	return SUCCESS;
 }
 
+// TODO: Provide a function for the request processor to log stuff as well
 void server_log (const char *format, ...) {
 	time_t rawtime;
 	struct tm * timeinfo;
