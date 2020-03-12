@@ -4,34 +4,42 @@
 
 #include <stdio.h>
 #include "picohttpparser.h"
+#include "server.h"
 
 #define HTTP_VER "HTTP/1.1"
 #define BUFFER_LEN 2048
 
-// Como máximo 7 caracteres de método (ej. OPTIONS) y caracter de fin de cadena
-#define MAX_METHOD 8
-
-#define MAX_HTTPVER 10
-
-// Arbitrarios
-#define MAX_URL 150
-#define MAX_HOST 50
-#define MAX_PATH 50
-#define MAX_QUERYSTRING 50
-#define MAX_BODY 1024
-
-
 struct reqStruct {
-    const char *method, *path;
-    int minor_version;
-    struct phr_header headers[100];
-    size_t method_len, path_len, num_headers;
+	const char *method, *path;
+	int minor_version;
+	struct phr_header headers[100];
+	size_t method_len, path_len, num_headers;
 };
 
-int processHTTPRequest(int socket);
+SERVERCMD processHTTPRequest(int socket);
 
-int respond(int socket, int code, char *message, char *body);
+int respond(int socket, unsigned int code, char *message, char *body);
 
 int httpreq_print(FILE *fd, struct reqStruct *request);
+
+typedef enum _HTTP_SUCCESS {
+	OK = 200,
+	CREATED = 201,
+	NO_CONTENT = 204,
+} HTTP_SUCCESS;
+
+typedef enum _HTTP_CLIENT_ERROR {
+	BAD_REQUEST = 400,
+	UNAUTHORIZED = 401,
+	FORBIDDEN = 403,
+	NOT_FOUND = 404,
+	METHOD_NOT_ALLOWED = 405
+} HTTP_CLIENT_ERROR;
+
+typedef enum _HTTP_SERVER_ERROR {
+	INTERNAL_ERROR = 500,
+	NOT_IMPLEMENTED = 501,
+	HTTP_VERSION_UNSUPPORTED = 505,
+} HTTP_SERVER_ERROR;
 
 #endif //PRACTICA1_HTTPUTILS_H
