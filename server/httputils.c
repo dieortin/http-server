@@ -106,17 +106,17 @@ int resolution_get(int socket, struct reqStruct *request) {
     char webpath[300];
     char cwd[200];
     getcwd(cwd, 200);
+    char *buffer = 0;
+    long length;
+    FILE *f = fopen(webpath, "rb");
 
     strcpy(webpath, cwd);
     strcat(webpath, "/www");
     strcat(webpath, request->path);
     printf("%s", webpath);
 
-    //si el archivo existe
+    ///si el archivo existe
     if (access(webpath, F_OK) == 0) {
-        char *buffer = 0;
-        long length;
-        FILE *f = fopen(webpath, "rb");
 
         if (f) {
             fseek(f, 0, SEEK_END);
@@ -124,15 +124,15 @@ int resolution_get(int socket, struct reqStruct *request) {
             fseek(f, 0, SEEK_SET);
             buffer = malloc(length);
             if (buffer) {
-                fread(buffer, 1, length, f);
+                fread(buffer, 1, length, f);    ///se introduce en el buffer el archivo
             }
             fclose(f);
         }
 
         respond(socket, OK, "Solved", buffer);
-    } else if (errno == ENOENT) {  //si el archivo no existe
+    } else if (errno == ENOENT) {  ///si el archivo no existe
         respond(socket, NOT_FOUND, "Not found", "Sorry, the requested resource was not found at this server");
-    } else {   //otro error
+    } else {   ///otro error
         respond(socket, INTERNAL_ERROR, "Not found", "Sorry, the requested resource can't be accessed");
     }
     return 0;
