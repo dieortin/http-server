@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include "picohttpparser.h"
+#include "server.h"
 
 #define HTTP_VER "HTTP/1.1"
 #define BUFFER_LEN 2048
@@ -19,7 +20,7 @@ struct reqStruct {
     size_t num_headers;
 };
 
-int processHTTPRequest(int socket);
+SERVERCMD processHTTPRequest(int socket);
 
 int respond(int socket, unsigned int code, char *message, char *body);
 
@@ -36,6 +37,7 @@ typedef enum _HTTP_SUCCESS {
     CREATED = 201,
     NO_CONTENT = 204,
 } HTTP_SUCCESS;
+
 typedef enum _HTTP_CLIENT_ERROR {
     BAD_REQUEST = 400,
     UNAUTHORIZED = 401,

@@ -22,7 +22,7 @@ int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct reqStruc
     return p;
 }
 
-int processHTTPRequest(int socket) {
+SERVERCMD processHTTPRequest(int socket) {
     struct reqStruct request;
     size_t prevbuflen = 0;
     // Zero out the structure
@@ -41,6 +41,9 @@ int processHTTPRequest(int socket) {
     parseRequest(buffer, BUFFER_LEN, prevbuflen, &request);
     httpreq_print(stdout, &request);
 
+    respond(socket, 404, "Not found", "Sorry, the requested resource was not found at this server");
+
+    return CONTINUE; /// Tell the server to continue accepting requests
     if (strcmp(request.method, GET) == 0) {
         resolution_get(socket, &request);
     } else if (strcmp(request.method, POST) == 0) {
@@ -106,7 +109,7 @@ int resolution_get(int socket, struct reqStruct *request) {
     char webpath[300];
     char cwd[200];
     getcwd(cwd, 200);
-    char *buffer = 0;
+    char *buffer = NULL;
     long length;
     FILE *f = fopen(webpath, "rb");
 
@@ -127,6 +130,8 @@ int resolution_get(int socket, struct reqStruct *request) {
                 fread(buffer, 1, length, f);    ///se introduce en el buffer el archivo
             }
             fclose(f);
+        } else {
+            respond(socket, INTERNAL_ERROR, "can't open", "Sorry, the requested resource could not be accessed");
         }
 
         respond(socket, OK, "Solved", buffer);
