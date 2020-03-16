@@ -26,7 +26,7 @@ int respond(int socket, unsigned int code, char *message, char *body);
 
 int httpreq_print(FILE *fd, struct reqStruct *request);
 
-int resolution_get(int socket, struct reqStruct *request);
+STATUS resolution_get(int socket, struct reqStruct *request);
 
 int resolution_post(int socket, struct reqStruct *request);
 
