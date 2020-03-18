@@ -19,8 +19,8 @@
  * the request processor to interact with the server.
  */
 typedef enum _SERVERCMD {
-	CONTINUE, ///< This message signals the #Server to continue accepting requests
-	STOP ///< This message signals the #Server to stop accepting requests
+    CONTINUE, ///< This message signals the #Server to continue accepting requests
+    STOP ///< This message signals the #Server to stop accepting requests
 } SERVERCMD;
 
 /**
@@ -49,7 +49,7 @@ Server *server_init(char *config_filename, SERVERCMD (*request_processor)(int so
  * @param[in,out] srv The #Server to be freed
  * @return \ref STATUS.ERROR if any error occurs, \ref STATUS.SUCCESS otherwise
  */
-STATUS server_free (Server *srv);
+STATUS server_free(Server *srv);
 
 /**
  * @brief Makes the #Server start listening and accepting connections with the function stored
@@ -58,6 +58,6 @@ STATUS server_free (Server *srv);
  * @param srv The #Server to start.
  * @return \ref STATUS.ERROR if any error occurs, \ref STATUS.SUCCESS otherwise
  */
-STATUS server_start (Server *srv);
+STATUS server_start(Server *srv);
 
 #endif //PRACTICA1_SERVER_H

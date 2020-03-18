@@ -21,8 +21,8 @@
  * Represents outcomes of the execution of a function
  */
 typedef enum _STATUS {
-	SUCCESS = 1, ///< The function executed without errors
-	ERROR = 0 ///< The function encountered at least one error
+    SUCCESS = 1, ///< The function executed without errors
+    ERROR = 0 ///< The function encountered at least one error
 } STATUS;
 
 #define PRACTICA1_CONSTANTS_H

@@ -44,8 +44,8 @@ static const char *OPTIONS_STR[] = {
  * parameter can be
  */
 typedef enum config_partype {
-	PARTYPE_INTEGER, ///< Type @c int
-	PARTYPE_STRING ///< Type @c char*
+    PARTYPE_INTEGER, ///< Type @c int
+    PARTYPE_STRING ///< Type @c char*
 } config_partype;
 
 /**
@@ -55,8 +55,8 @@ typedef enum config_partype {
  * @brief Contains the metadata of a supported user-defined parameter
  */
 struct supported_param {
-	char name[MAX_PARAM_NAME]; ///< The string that identifies the parameter in the configuration file
-	config_partype type; ///< The expected type for the parameter
+    char name[MAX_PARAM_NAME]; ///< The string that identifies the parameter in the configuration file
+    config_partype type; ///< The expected type for the parameter
 };
 
 // TODO: Move the supported parameters part to the server files, as it depends on the server implementation
@@ -69,10 +69,10 @@ struct supported_param {
  * @brief Contains the user-defined parameters that are supported by the Server
  */
 enum USER_PARAMS {
-	PARAMS_PORT,
-	PARAMS_WEBROOT,
-	//PARAMS_NTHREADS,
-	PARAMS_QUEUE_SIZE
+    PARAMS_PORT,
+    PARAMS_WEBROOT,
+    //PARAMS_NTHREADS,
+    PARAMS_QUEUE_SIZE
 };
 
 /**
@@ -83,11 +83,11 @@ enum USER_PARAMS {
  * @ref USER_PARAMS. Each structure represents the parameter in its same position.
  */
 static const struct supported_param USERPARAMS_META[] = {
-		{"PORT",       PARTYPE_INTEGER},
-		{"WEBROOT",    PARTYPE_STRING},
-		{"NTHREADS",   PARTYPE_INTEGER},
-		{"QUEUE_SIZE", PARTYPE_INTEGER},
-		{"NTHREADS",   PARTYPE_INTEGER}
+        {"PORT",       PARTYPE_INTEGER},
+        {"WEBROOT",    PARTYPE_STRING},
+        {"NTHREADS",   PARTYPE_INTEGER},
+        {"QUEUE_SIZE", PARTYPE_INTEGER},
+        {"NTHREADS",   PARTYPE_INTEGER}
 };
 
 #define USERPARAMS_NUM (sizeof(USERPARAMS_META) / sizeof(USERPARAMS_META[0])) ///< Number of supported parameters
@@ -104,8 +104,8 @@ static const struct supported_param USERPARAMS_META[] = {
  * @see config_partype
  */
 union param_value {
-	int integer; ///< Member which stores the data when the type is integer
-	char string[MAX_CONFIG_STR]; ///< Member which stores the data when the type is string
+    int integer; ///< Member which stores the data when the type is integer
+    char string[MAX_CONFIG_STR]; ///< Member which stores the data when the type is string
 }; // TODO: Make dynamic?
 
 /**
@@ -115,10 +115,10 @@ union param_value {
  * @brief This structure stores a key-value pair of the dictionary, together with its type information.
  */
 struct config_param {
-	char name[MAX_PARAM_NAME]; ///< Name of the parameter
-	union param_value value; ///< Value of the parameter
-	config_partype type; ///< Type of the parameter
-	struct UT_hash_handle hh; ///< Handle to be used by @a uthash
+    char name[MAX_PARAM_NAME]; ///< Name of the parameter
+    union param_value value; ///< Value of the parameter
+    config_partype type; ///< Type of the parameter
+    struct UT_hash_handle hh; ///< Handle to be used by @a uthash
 };
 
 //config_partype str_get_type(char *str);
