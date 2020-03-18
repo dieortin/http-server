@@ -143,7 +143,7 @@ STATUS resolution_get(int socket, struct reqStruct *request) {
 
     //si el archivo existe
     if (access(webpath, F_OK) == 0) {
-        FILE *f = fopen(webpath, "r");
+       FILE *f = fopen(webpath, "r");
         if (!f) {
             //respond(socket, INTERNAL_ERROR, "can't open", "Sorry, the requested resource could not be accessed");
             return ERROR;
@@ -180,9 +180,15 @@ int resolution_options(int socket, struct reqStruct *request) {
 }
 
 STATUS set_header(struct httpResHeaders *headers, char *name, char *value) {
-    headers->headers = realloc(headers->headers, headers->num_headers * sizeof(char *) + sizeof(char *));
-    headers->headers[headers->num_headers] = malloc(sizeof(char *));
-    strcpy(headers->headers[headers->num_headers], value);
+    if (headers->num_headers == 0) {
+        headers->headers = calloc(1, sizeof(char *));
+    } else {
+        headers->headers = realloc(headers->headers, (headers->num_headers + 1) * sizeof(char *));
+    }
+
+    headers->headers[headers->num_headers] = calloc(strlen(name) + strlen(value) + HEADER_EXTRA_SPACE, sizeof(char));
+    sprintf(headers->headers[headers->num_headers], "%s: %s", name, value);
+
     headers->num_headers++;
-    return OK;
+    return SUCCESS;
 }

@@ -13,11 +13,14 @@
 #define POST "POST"
 #define OPTIONS "OPTIONS"
 
-#define Date "Date: "
-#define Server_Origin "Server: "
-#define Last_Modified "Last-Modified: "
-#define Content_Length "Content-Length: "
-#define Content_Type "Content-Type: "
+#define Date "Date"
+#define Server_Origin "Server"
+#define Last_Modified "Last-Modified"
+#define Content_Length "Content-Length"
+#define Content_Type "Content-Type"
+
+#define HEADER_EXTRA_SPACE 3 ///< Space required for ": " and the null termination character in the headers
+
 
 struct reqStruct {
     char *method, *path;
