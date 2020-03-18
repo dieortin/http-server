@@ -1,4 +1,9 @@
-
+/**
+ * @file httputils.c
+ * @brief Contains the implementation of the functions for requests and responds
+ * @author Diego Ortín Fernández & Mario Lopez
+ * @date February 2020
+ */
 #include "httputils.h"
 #include "constants.h"
 
@@ -8,6 +13,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <time.h>
 
 int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct reqStruct *request) {
     int p;
@@ -49,21 +55,29 @@ SERVERCMD processHTTPRequest(int socket) {
     } else if (strcmp(request.method, OPTIONS) == 0) {
         resolution_options(socket, &request);
     } else {
-        respond(socket, METHOD_NOT_ALLOWED, "Not supported", "Sorry, bad request");
+        //respond(socket, METHOD_NOT_ALLOWED, "Not supported", "Sorry, bad request");
     }
     free(request.method);
     free(request.path);
     return CONTINUE; /// Tell the server to continue accepting requests
 }
 
-int respond(int socket, unsigned int code, char *message, char *body) {
+int respond(int socket, unsigned int code, char *message, struct httpResHeaders *headers, char *body) {
     char buffer[BUFFER_LEN];
+    int i;
 
     // Response header
     if (message) {
         sprintf(buffer, "%s %i %s\r\n", HTTP_VER, code, message);
     } else {
         sprintf(buffer, "%s %i\r\n", HTTP_VER, code);
+    }
+
+    if (headers) {
+        for (i = 0; i < headers->num_headers; i++) {
+            sprintf(buffer, "%s ", headers->headers[i]);
+        }
+        sprintf(buffer, "\r\n");
     }
 
     // Empty line before response body
@@ -111,17 +125,27 @@ STATUS resolution_get(int socket, struct reqStruct *request) {
     getcwd(cwd, 200);
     char *buffer = NULL;
     long length;
+    //create header structure
+    struct httpResHeaders headers;
+    memset(&headers, 0, sizeof headers);
+    //create http date
+    char timeStr[1000];
+    time_t now = time(0);
+    struct tm tm = *gmtime(&now);
+    strftime(timeStr, sizeof timeStr, "%a, %d %b %Y %H:%M:%S %Z", &tm);
 
     strcpy(webpath, cwd);
     strcat(webpath, "/www");
     strcat(webpath, request->path);
     printf("%s", webpath);
 
+    set_header(&headers, Date, timeStr);
+
     //si el archivo existe
     if (access(webpath, F_OK) == 0) {
         FILE *f = fopen(webpath, "r");
         if (!f) {
-            respond(socket, INTERNAL_ERROR, "can't open", "Sorry, the requested resource could not be accessed");
+            //respond(socket, INTERNAL_ERROR, "can't open", "Sorry, the requested resource could not be accessed");
             return ERROR;
         }
 
@@ -130,19 +154,19 @@ STATUS resolution_get(int socket, struct reqStruct *request) {
         fseek(f, 0, SEEK_SET);
         buffer = calloc(length + 1, sizeof(char));
         if (!buffer) {
-            respond(socket, INTERNAL_ERROR, "can't open", "Sorry, the requested resource could not be accessed");
+            //respond(socket, INTERNAL_ERROR, "can't open", "Sorry, the requested resource could not be accessed");
             return ERROR;
         }
         fread(buffer, sizeof(char), length, f);    //se introduce en el buffer el archivo
-        respond(socket, OK, "Solved", buffer);
+        respond(socket, OK, "Solved", &headers, buffer);
         fclose(f);
         return SUCCESS;
 
     } else if (errno == ENOENT) {  //si el archivo no existe
-        respond(socket, NOT_FOUND, "Not found", "Sorry, the requested resource was not found at this server");
+        //respond(socket, NOT_FOUND, "Not found", "Sorry, the requested resource was not found at this server");
         return SUCCESS;
     } else {   //otro error
-        respond(socket, INTERNAL_ERROR, "Not found", "Sorry, the requested resource can't be accessed");
+        //respond(socket, INTERNAL_ERROR, "Not found", "Sorry, the requested resource can't be accessed");
         return ERROR;
     }
 }
@@ -153,4 +177,12 @@ int resolution_post(int socket, struct reqStruct *request) {
 
 int resolution_options(int socket, struct reqStruct *request) {
     return 0;
+}
+
+STATUS set_header(struct httpResHeaders *headers, char *name, char *value) {
+    headers->headers = realloc(headers->headers, headers->num_headers * sizeof(char *) + sizeof(char *));
+    headers->headers[headers->num_headers] = malloc(sizeof(char *));
+    strcpy(headers->headers[headers->num_headers], value);
+    headers->num_headers++;
+    return OK;
 }

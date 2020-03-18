@@ -13,6 +13,12 @@
 #define POST "POST"
 #define OPTIONS "OPTIONS"
 
+#define Date "Date: "
+#define Server_Origin "Server: "
+#define Last_Modified "Last-Modified: "
+#define Content_Length "Content-Length: "
+#define Content_Type "Content-Type: "
+
 struct reqStruct {
     char *method, *path;
     int minor_version;
@@ -20,9 +26,14 @@ struct reqStruct {
     size_t num_headers;
 };
 
+struct httpResHeaders {
+    int num_headers;
+    char **headers;
+};
+
 SERVERCMD processHTTPRequest(int socket);
 
-int respond(int socket, unsigned int code, char *message, char *body);
+int respond(int socket, unsigned int code, char *message, struct httpResHeaders *headers, char *body);
 
 int httpreq_print(FILE *fd, struct reqStruct *request);
 
@@ -31,6 +42,8 @@ STATUS resolution_get(int socket, struct reqStruct *request);
 int resolution_post(int socket, struct reqStruct *request);
 
 int resolution_options(int socket, struct reqStruct *request);
+
+STATUS set_header(struct httpResHeaders *headers, char *name, char *value);
 
 typedef enum _HTTP_SUCCESS {
     OK = 200,
@@ -51,5 +64,6 @@ typedef enum _HTTP_SERVER_ERROR {
     NOT_IMPLEMENTED = 501,
     HTTP_VERSION_UNSUPPORTED = 505,
 } HTTP_SERVER_ERROR;
+
 
 #endif //PRACTICA1_HTTPUTILS_H
