@@ -48,6 +48,8 @@ int resolution_options(int socket, struct reqStruct *request);
 
 STATUS set_header(struct httpResHeaders *headers, char *name, char *value);
 
+STATUS send_file(int socket, struct httpResHeaders *headers, char *path);
+
 typedef enum _HTTP_SUCCESS {
     OK = 200,
     CREATED = 201,

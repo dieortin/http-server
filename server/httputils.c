@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+STATUS setDefaultHeaders(struct httpResHeaders *headers);
+
 int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct reqStruct *request) {
     int p;
     const char *method, *path;
@@ -117,57 +119,25 @@ int httpreq_print(FILE *fd, struct reqStruct *request) {
 }
 
 STATUS resolution_get(int socket, struct reqStruct *request) {
-    char webpath[300];
-    char cwd[200];
-    memset(webpath, 0, 300 * sizeof(char));
-    memset(cwd, 0, 200 * sizeof(char));
-    getcwd(cwd, 200);
-    char *buffer = NULL;
-    long length;
     //create header structure
     struct httpResHeaders headers;
     memset(&headers, 0, sizeof headers);
-    //create http date
-    char timeStr[1000];
+
+    setDefaultHeaders(&headers);
+
+    return send_file(socket, &headers, request->path);
+}
+
+STATUS setDefaultHeaders(struct httpResHeaders *headers) {
+    char timeStr[100];
     time_t now = time(0);
     struct tm tm = *gmtime(&now);
     strftime(timeStr, sizeof timeStr, "%a, %d %b %Y %H:%M:%S %Z", &tm);
-
-    strcpy(webpath, cwd);
-    strcat(webpath, "/www");
-    strcat(webpath, request->path);
-    printf("%s", webpath);
-
-    set_header(&headers, Date, timeStr);
-
-    //si el archivo existe
-    if (access(webpath, F_OK) == 0) {
-       FILE *f = fopen(webpath, "r");
-        if (!f) {
-            //respond(socket, INTERNAL_ERROR, "can't open", "Sorry, the requested resource could not be accessed");
-            return ERROR;
-        }
-
-        fseek(f, 0, SEEK_END);
-        length = ftell(f);
-        fseek(f, 0, SEEK_SET);
-        buffer = calloc(length + 1, sizeof(char));
-        if (!buffer) {
-            //respond(socket, INTERNAL_ERROR, "can't open", "Sorry, the requested resource could not be accessed");
-            return ERROR;
-        }
-        fread(buffer, sizeof(char), length, f);    //se introduce en el buffer el archivo
-        respond(socket, OK, "Solved", &headers, buffer);
-        fclose(f);
-        return SUCCESS;
-
-    } else if (errno == ENOENT) {  //si el archivo no existe
-        //respond(socket, NOT_FOUND, "Not found", "Sorry, the requested resource was not found at this server");
-        return SUCCESS;
-    } else {   //otro error
-        //respond(socket, INTERNAL_ERROR, "Not found", "Sorry, the requested resource can't be accessed");
-        return ERROR;
-    }
+    //create date header
+    set_header(headers, Date, timeStr);
+    //create server header
+    set_header(headers, Server_Origin, "httpServer");
+    return SUCCESS;
 }
 
 int resolution_post(int socket, struct reqStruct *request) {
@@ -190,4 +160,47 @@ STATUS set_header(struct httpResHeaders *headers, char *name, char *value) {
 
     headers->num_headers++;
     return SUCCESS;
+}
+
+STATUS send_file(int socket, struct httpResHeaders *headers, char *path) {
+    char *buffer = NULL;
+    long length;
+    char webpath[300];
+    char cwd[200];
+    memset(webpath, 0, 300 * sizeof(char));
+    memset(cwd, 0, 200 * sizeof(char));
+    getcwd(cwd, 200);
+
+    strcpy(webpath, cwd);
+    strcat(webpath, "/www");
+    strcat(webpath, path);
+
+    //si el archivo existe
+    if (access(webpath, F_OK) == 0) {
+        FILE *f = fopen(webpath, "r");
+        if (!f) {
+            respond(socket, INTERNAL_ERROR, "can't open", NULL, "Sorry, the requested resource could not be accessed");
+            return ERROR;
+        }
+
+        fseek(f, 0, SEEK_END);
+        length = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        buffer = calloc(length + 1, sizeof(char));
+        if (!buffer) {
+            //respond(socket, INTERNAL_ERROR, "can't open", "Sorry, the requested resource could not be accessed");
+            return ERROR;
+        }
+        fread(buffer, sizeof(char), length, f);    //se introduce en el buffer el archivo
+        respond(socket, OK, "Solved", headers, buffer);
+        fclose(f);
+        return SUCCESS;
+
+    } else if (errno == ENOENT) {  //si el archivo no existe
+        //respond(socket, NOT_FOUND, "Not found", "Sorry, the requested resource was not found at this server");
+        return SUCCESS;
+    } else {   //otro error
+        //respond(socket, INTERNAL_ERROR, "Not found", "Sorry, the requested resource can't be accessed");
+        return ERROR;
+    }
 }
