@@ -75,9 +75,8 @@ int respond(int socket, unsigned int code, char *message, struct httpResHeaders 
 
     if (headers) {
         for (i = 0; i < headers->num_headers; i++) {
-            sprintf(buffer, "%s ", headers->headers[i]);
+            sprintf(buffer + strlen(buffer), "%s\r\n", headers->headers[i]);
         }
-        sprintf(buffer, "\r\n");
     }
 
     // Empty line before response body
