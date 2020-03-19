@@ -15,25 +15,61 @@
 #include <stdlib.h>
 #include <time.h>
 
-int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct reqStruct *request) {
-    int p;
-    const char *method, *path;
-    size_t method_len, path_len;
-    p = phr_parse_request(buf, buflen, &method, &method_len, &path, &path_len,
-                          &request->minor_version, request->headers, &request->num_headers, prevbuflen);
-    request->method = calloc(method_len + 1, sizeof(char));
-    request->path = calloc(path_len + 1, sizeof(char));
-    strncpy(request->method, method, method_len);
-    strncpy(request->path, path, path_len);
+int route(int socket, struct request *request);
 
-    return p;
+//int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct request *request) {
+//    int p;
+//    const char *method, *path;
+//    size_t method_len, path_len;
+//    p = phr_parse_request(buf, buflen, &method, &method_len, &path, &path_len,
+//                          &request->minor_version, request->headers, &request->num_headers, prevbuflen);
+//    request->method = calloc(method_len + 1, sizeof(char));
+//    request->path = calloc(path_len + 1, sizeof(char));
+//    strncpy(request->method, method, method_len);
+//    strncpy(request->path, path, path_len);
+//
+//    return p;
+//}
+
+struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen) {
+    if (!buf) return NULL;
+
+    struct request *req = calloc(1, sizeof(struct request));
+    if (!req) return NULL;
+    // Zero out the structure
+    memset(req, 0, sizeof(struct request));
+
+
+    // Temporal variables to store the method and path positions before copying them to the new structure
+    const char *tmp_method, *tmp_path;
+    size_t tmp_method_len, tmp_path_len;
+
+
+    phr_parse_request(buf, buflen, &tmp_method, &tmp_method_len, &tmp_path, &tmp_path_len, &req->minor_version,
+                      req->headers, &req->num_headers, prevbuflen);
+
+    req->method = calloc(tmp_method_len + 1, sizeof(char));
+    req->path = calloc(tmp_path_len + 1, sizeof(char));
+
+    strncpy((char *) req->method, tmp_method, tmp_method_len);
+    strncpy((char *) req->path, tmp_path, tmp_path_len);
+
+    return req;
 }
 
-SERVERCMD processHTTPRequest(int socket) {
-    struct reqStruct request;
+STATUS freeRequest(struct request *request) {
+    if (!request) return ERROR;
+
+    free((char *) request->path);
+    free((char *) request->method);
+    free(request);
+
+    return SUCCESS;
+}
+
+
+SERVERCMD processHTTPRequest(int socket, void (*log)(const char *fmt, ...)) {
     size_t prevbuflen = 0;
-    // Zero out the structure
-    memset(&request, 0, sizeof request);
 
     char buffer[BUFFER_LEN];
     memset(buffer, 0, sizeof buffer);
@@ -41,25 +77,33 @@ SERVERCMD processHTTPRequest(int socket) {
 
     read(socket, buffer, BUFFER_LEN);
 
-    printf("-------BEGIN-----------\n%s\n-------END------\n", buffer);
+//    printf("-------BEGIN-----------\n%s\n-------END------\n", buffer);
+//
+//    printf("------END----------------\n");
 
-    printf("------END----------------\n");
+    struct request *request = parseRequest(buffer, BUFFER_LEN, prevbuflen);
+    //httpreq_print(stdout, request);
 
-    parseRequest(buffer, BUFFER_LEN, prevbuflen, &request);
-    httpreq_print(stdout, &request);
+    int code = route(socket, request);
 
-    if (strcmp(request.method, GET) == 0) {
-        resolution_get(socket, &request);
-    } else if (strcmp(request.method, POST) == 0) {
-        resolution_post(socket, &request);
-    } else if (strcmp(request.method, OPTIONS) == 0) {
-        resolution_options(socket, &request);
-    } else {
-        //respond(socket, METHOD_NOT_ALLOWED, "Not supported", "Sorry, bad request");
-    }
-    free(request.method);
-    free(request.path);
+
+    log("%s %s %i", request->method, request->path, code);
+
+    freeRequest(request);
+
     return CONTINUE; /// Tell the server to continue accepting requests
+}
+
+int route(int socket, struct request *request) {
+    if (strcmp(request->method, GET) == 0) {
+        return resolution_get(socket, request);
+    } else if (strcmp(request->method, POST) == 0) {
+        return resolution_post(socket, request);
+    } else if (strcmp(request->method, OPTIONS) == 0) {
+        return resolution_options(socket, request);
+    } else {
+        return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, "Sorry, bad request");
+    }
 }
 
 int respond(int socket, unsigned int code, char *message, struct httpResHeaders *headers, char *body) {
@@ -99,7 +143,7 @@ int respond(int socket, unsigned int code, char *message, struct httpResHeaders 
     return 0;
 }
 
-int httpreq_print(FILE *fd, struct reqStruct *request) {
+int httpreq_print(FILE *fd, struct request *request) {
     int i;
     if (!fd || !request) return -1;
 
@@ -116,7 +160,7 @@ int httpreq_print(FILE *fd, struct reqStruct *request) {
     return 0;
 }
 
-STATUS resolution_get(int socket, struct reqStruct *request) {
+int resolution_get(int socket, struct request *request) {
     char webpath[300];
     char cwd[200];
     memset(webpath, 0, 300 * sizeof(char));
@@ -136,45 +180,39 @@ STATUS resolution_get(int socket, struct reqStruct *request) {
     strcpy(webpath, cwd);
     strcat(webpath, "/www");
     strcat(webpath, request->path);
-    printf("%s", webpath);
+    //printf("%s", webpath);
 
-    set_header(&headers, Date, timeStr);
+    set_header(&headers, HDR_DATE, timeStr);
 
     //si el archivo existe
-    if (access(webpath, F_OK) == 0) {
-       FILE *f = fopen(webpath, "r");
-        if (!f) {
-            //respond(socket, INTERNAL_ERROR, "can't open", "Sorry, the requested resource could not be accessed");
-            return ERROR;
-        }
-
+    // TODO: Check if it's a directory or a file
+    FILE *f = fopen(webpath, "r");
+    if (f) {
         fseek(f, 0, SEEK_END);
         length = ftell(f);
         fseek(f, 0, SEEK_SET);
         buffer = calloc(length + 1, sizeof(char));
-        if (!buffer) {
-            //respond(socket, INTERNAL_ERROR, "can't open", "Sorry, the requested resource could not be accessed");
-            return ERROR;
-        }
-        fread(buffer, sizeof(char), length, f);    //se introduce en el buffer el archivo
-        respond(socket, OK, "Solved", &headers, buffer);
-        fclose(f);
-        return SUCCESS;
 
-    } else if (errno == ENOENT) {  //si el archivo no existe
-        //respond(socket, NOT_FOUND, "Not found", "Sorry, the requested resource was not found at this server");
-        return SUCCESS;
-    } else {   //otro error
-        //respond(socket, INTERNAL_ERROR, "Not found", "Sorry, the requested resource can't be accessed");
-        return ERROR;
+        fread(buffer, sizeof(char), length, f);    //se introduce en el buffer el archivo
+        respond(socket, OK, "OK", &headers, buffer);
+        fclose(f);
+        return OK;
+    } else {
+        if (errno == ENOENT) {
+            respond(socket, NOT_FOUND, "Not found", NULL, "Sorry, the requested resource was not found at this server");
+            return NOT_FOUND;
+        } else {
+            respond(socket, INTERNAL_ERROR, "Not found", NULL, "Sorry, the requested resource can't be accessed");
+            return INTERNAL_ERROR;
+        }
     }
 }
 
-int resolution_post(int socket, struct reqStruct *request) {
+int resolution_post(int socket, struct request *request) {
     return 0;
 }
 
-int resolution_options(int socket, struct reqStruct *request) {
+int resolution_options(int socket, struct request *request) {
     return 0;
 }
 

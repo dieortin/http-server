@@ -69,10 +69,11 @@ struct supported_param {
  * @brief Contains the user-defined parameters that are supported by the Server
  */
 enum USER_PARAMS {
+    PARAMS_ADDRESS,
     PARAMS_PORT,
     PARAMS_WEBROOT,
     //PARAMS_NTHREADS,
-    PARAMS_QUEUE_SIZE
+            PARAMS_QUEUE_SIZE
 };
 
 /**
@@ -83,6 +84,7 @@ enum USER_PARAMS {
  * @ref USER_PARAMS. Each structure represents the parameter in its same position.
  */
 static const struct supported_param USERPARAMS_META[] = {
+        {"ADDRESS",    PARTYPE_STRING},
         {"PORT",       PARTYPE_INTEGER},
         {"WEBROOT",    PARTYPE_STRING},
         {"NTHREADS",   PARTYPE_INTEGER},

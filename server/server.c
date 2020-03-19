@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <time.h>
 #include <string.h>
+#include <libnet.h>
 
 #include "server.h"
 #include "readconfig.h"
@@ -26,6 +27,11 @@
  */
 void server_log(const char *format, ...);
 
+
+void server_http_log(const char *format, ...);
+
+char *get_time_str();
+
 /**
  * @struct _server
  * @brief Stores all the data of the server. Most of it is filled in when the #server_init function
@@ -38,12 +44,14 @@ struct _server {
     int addrlen; ///< Contains the length of the #_server.address structure
     int options; ///< Contains the options applied to the socket
     int socket_descriptor; ///< Stores the main socket descriptor where the #Server is listening
-    SERVERCMD (*request_processor)(int socket); ///< The function to be called each time a new connection is accepted.
+    SERVERCMD (*request_processor)(int socket, void (*logger)(const char *fmt,
+                                                              ...)); ///< The function to be called each time a new connection is accepted.
     ///< Depending on the value returned by it, the server will continue
     ///< accepting requests or stop doing so.
 };
 
-Server *server_init(char *config_filename, SERVERCMD (*request_processor)(int)) {
+Server *
+server_init(char *config_filename, SERVERCMD (*request_processor)(int socket, void (*logger)(const char *fmt, ...))) {
     server_log("Initializing server...");
 
     if (!config_filename) {
@@ -68,10 +76,13 @@ Server *server_init(char *config_filename, SERVERCMD (*request_processor)(int)) 
         return NULL;
     }
 
+    char *ipaddr;
+    config_getparam_str(&srv->config, PARAMS_ADDRESS, &ipaddr);
+
     // Initialize the address field for binding
     memset(&srv->address, 0, sizeof srv->address);
     srv->address.sin_family = AF_INET;
-    srv->address.sin_addr.s_addr = htonl(INADDR_ANY); // NOLINT(hicpp-signed-bitwise)
+    inet_pton(AF_INET, ipaddr, &srv->address.sin_addr.s_addr);
 
     int port, ret;
     if ((ret = config_getparam_int(&srv->config, PARAMS_PORT, &port)) != 0) {
@@ -99,10 +110,11 @@ STATUS server_start(Server *srv) {
     server_log("Starting server...");
 
     int port;
-    char *webroot;
+    char *webroot, *ip;
     config_getparam_int(&srv->config, PARAMS_PORT, &port);
+    config_getparam_str(&srv->config, PARAMS_ADDRESS, &ip);
     config_getparam_str(&srv->config, PARAMS_WEBROOT, &webroot);
-    server_log("Configuration options are:\n\tport %u\n\twebroot [%s]", port, webroot);
+    server_log("Configuration options are:\n\taddress %s\n\tport %u\n\twebroot [%s]", ip, port, webroot);
 
     if ((srv->socket_descriptor = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         server_log("Socket creation failed");
@@ -110,13 +122,13 @@ STATUS server_start(Server *srv) {
         return ERROR;
     }
 
-    if ((setsockopt(srv->socket_descriptor, SOL_SOCKET, SO_REUSEADDR, &srv->options, sizeof srv->options)) == -1) {
+    if ((setsockopt(srv->socket_descriptor, SOL_SOCKET, SO_REUSEADDR, &srv->options, sizeof srv->options)) < 0) {
         server_log("Socket creation failed");
         perror("Options failed: SOL_REUSEADDR");
         return ERROR;
     }
 
-    if ((setsockopt(srv->socket_descriptor, SOL_SOCKET, SO_REUSEPORT, &srv->options, sizeof srv->options)) == -1) {
+    if ((setsockopt(srv->socket_descriptor, SOL_SOCKET, SO_REUSEPORT, &srv->options, sizeof srv->options)) < 0) {
         server_log("Socket creation failed");
         perror("Options failed: SOL_REUSEPORT");
         return ERROR;
@@ -148,7 +160,7 @@ STATUS server_start(Server *srv) {
             perror(("Accept failed"));
             return ERROR;
         } else {
-            if ((*(srv->request_processor))(new_socket) == STOP) {
+            if ((*(srv->request_processor))(new_socket, &server_http_log) == STOP) {
                 break;
             }
         }
@@ -156,8 +168,29 @@ STATUS server_start(Server *srv) {
     return SUCCESS;
 }
 
-// TODO: Provide a function for the request processor to log stuff as well
 void server_log(const char *format, ...) {
+    char *timestr = get_time_str();
+
+    printf("%s%s %s[Server]%s ", YEL, timestr, GRN, reset); // TODO: Allow printing to other files (syslog?)
+    va_list args;
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+    printf("\n");
+}
+
+void server_http_log(const char *format, ...) {
+    char *timestr = get_time_str();
+
+    printf("%s%s %s[HTTP]%s ", YEL, timestr, BLU, reset); // TODO: Allow printing to other files (syslog?)
+    va_list args;
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+    printf("\n");
+}
+
+char *get_time_str() {
     time_t rawtime;
     struct tm *timeinfo;
 
@@ -166,10 +199,5 @@ void server_log(const char *format, ...) {
     char *timestr = asctime(timeinfo);
     timestr[strlen(timestr) - 1] = 0; // Remove the newline at the end
 
-    printf("%s%s %s[Server]%s ", YEL, timestr, GRN, reset); // TODO: Allow printing to other files (syslog?)
-    va_list args;
-    va_start(args, format);
-    vprintf(format, args);
-    va_end(args);
-    printf("\n");
+    return timestr;
 }

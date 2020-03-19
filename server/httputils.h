@@ -13,17 +13,17 @@
 #define POST "POST"
 #define OPTIONS "OPTIONS"
 
-#define Date "Date"
-#define Server_Origin "Server"
-#define Last_Modified "Last-Modified"
-#define Content_Length "Content-Length"
-#define Content_Type "Content-Type"
+#define HDR_DATE "Date"
+#define HDR_SERVER_ORIGIN "Server"
+#define HDR_LAST_MODIFIED "Last-Modified"
+#define HDR_CONTENT_LENGTH "Content-Length"
+#define HDR_CONTENT_TYPE "Content-Type"
 
 #define HEADER_EXTRA_SPACE 3 ///< Space required for ": " and the null termination character in the headers
 
 
-struct reqStruct {
-    char *method, *path;
+struct request {
+    const char *method, *path;
     int minor_version;
     struct phr_header headers[100];
     size_t num_headers;
@@ -34,17 +34,17 @@ struct httpResHeaders {
     char **headers;
 };
 
-SERVERCMD processHTTPRequest(int socket);
+SERVERCMD processHTTPRequest(int socket, void (*log)(const char *fmt, ...));
 
 int respond(int socket, unsigned int code, char *message, struct httpResHeaders *headers, char *body);
 
-int httpreq_print(FILE *fd, struct reqStruct *request);
+int httpreq_print(FILE *fd, struct request *request);
 
-STATUS resolution_get(int socket, struct reqStruct *request);
+int resolution_get(int socket, struct request *request);
 
-int resolution_post(int socket, struct reqStruct *request);
+int resolution_post(int socket, struct request *request);
 
-int resolution_options(int socket, struct reqStruct *request);
+int resolution_options(int socket, struct request *request);
 
 STATUS set_header(struct httpResHeaders *headers, char *name, char *value);
 

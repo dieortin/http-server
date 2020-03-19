@@ -41,7 +41,8 @@ typedef struct _server Server;
  * @param[in] request_processor The function to be used to process each accepted request.
  * @return An initialized #Server, ready to be started with server_start(), or \a NULL if any error occurs.
  */
-Server *server_init(char *config_filename, SERVERCMD (*request_processor)(int socket));
+Server *
+server_init(char *config_filename, SERVERCMD (*request_processor)(int socket, void (*logger)(const char *fmt, ...)));
 
 /**
  * @brief Frees all the associated memory of the provided #Server
