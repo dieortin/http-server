@@ -7,7 +7,8 @@
 #include "server.h"
 
 #define HTTP_VER "HTTP/1.1"
-#define BUFFER_LEN 2048
+
+#define MAX_HTTPREQ (1024 * 8) ///< Maximum size of an HTTP request in any browser (Firefox in this case)
 
 #define GET "GET"
 #define POST "POST"
@@ -36,7 +37,7 @@ struct httpResHeaders {
 
 SERVERCMD processHTTPRequest(int socket, void (*log)(const char *fmt, ...));
 
-int respond(int socket, unsigned int code, char *message, struct httpResHeaders *headers, char *body);
+int respond(int socket, unsigned int code, char *message, struct httpResHeaders *headers, char *body, long body_len);
 
 int httpreq_print(FILE *fd, struct request *request);
 
@@ -46,7 +47,13 @@ int resolution_post(int socket, struct request *request);
 
 int resolution_options(int socket, struct request *request);
 
+struct httpResHeaders *create_header_struct();
+
 STATUS set_header(struct httpResHeaders *headers, char *name, char *value);
+
+void headers_free(struct httpResHeaders *headers);
+
+int headers_getlen(struct httpResHeaders *headers);
 
 typedef enum _HTTP_SUCCESS {
     OK = 200,

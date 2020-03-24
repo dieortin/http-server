@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#define CRLF_LEN strlen("\r\n") ///< Length of the string containing the response code (always three digit)
+
 int route(int socket, struct request *request);
 
 //int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct request *request) {
@@ -45,7 +47,7 @@ struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen) {
     size_t tmp_method_len, tmp_path_len;
 
 
-    phr_parse_request(buf, buflen, &tmp_method, &tmp_method_len, &tmp_path, &tmp_path_len, &req->minor_version,
+    phr_parse_request(buf, (size_t) buflen, &tmp_method, &tmp_method_len, &tmp_path, &tmp_path_len, &req->minor_version,
                       req->headers, &req->num_headers, prevbuflen);
 
     req->method = calloc(tmp_method_len + 1, sizeof(char));
@@ -68,24 +70,27 @@ STATUS freeRequest(struct request *request) {
 }
 
 
-SERVERCMD processHTTPRequest(int socket, void (*log)(const char *fmt, ...)) {
+SERVERCMD processHTTPRequest(int socket, void (*log)(const char *, ...)) {
     size_t prevbuflen = 0;
 
-    char buffer[BUFFER_LEN];
-    memset(buffer, 0, sizeof buffer);
+    char *buffer = calloc(MAX_HTTPREQ, sizeof(char));
 
+    int ret = (int) read(socket, buffer, MAX_HTTPREQ);
+    if (ret == -1) { // Error while reading from the socket
+        log("Error while reading from socket %i: %s", socket, strerror(errno));
+        respond(socket, INTERNAL_ERROR, "Internal server error", NULL, NULL, 0);
+        return CONTINUE; // TODO: return STOP?
+    }
 
-    read(socket, buffer, BUFFER_LEN);
 
 //    printf("-------BEGIN-----------\n%s\n-------END------\n", buffer);
 //
 //    printf("------END----------------\n");
 
-    struct request *request = parseRequest(buffer, BUFFER_LEN, prevbuflen);
+    struct request *request = parseRequest(buffer, MAX_HTTPREQ, prevbuflen);
     //httpreq_print(stdout, request);
 
     int code = route(socket, request);
-
 
     log("%s %s %i", request->method, request->path, code);
 
@@ -102,63 +107,90 @@ int route(int socket, struct request *request) {
     } else if (strcmp(request->method, OPTIONS) == 0) {
         return resolution_options(socket, request);
     } else {
-        return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, "Sorry, bad request");
+        return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
     }
 }
 
-int respond(int socket, unsigned int code, char *message, struct httpResHeaders *headers, char *body) {
-    char buffer[BUFFER_LEN];
-    int i;
+int respond(int socket, unsigned int code, char *message, struct httpResHeaders *headers, char *body, long body_len) {
+    char *status_line = NULL;
+    size_t status_line_len = 0;
 
     // Response header
     if (message) {
-        sprintf(buffer, "%s %i %s\r\n", HTTP_VER, code, message);
+        // First, calculate the size needed for the status line buffer
+        status_line_len = (size_t) snprintf(NULL, 0, "%s %i %s\r\n", HTTP_VER, code, message);
+        status_line = malloc(status_line_len + 1); // Allocate memory for the status line and null-terminator
+        sprintf(status_line, "%s %i %s\r\n", HTTP_VER, code, message); // Print the status line
     } else {
-        sprintf(buffer, "%s %i\r\n", HTTP_VER, code);
+        // First, calculate the size needed for the status line buffer
+        status_line_len = (size_t) snprintf(NULL, 0, "%s %i\r\n", HTTP_VER, code);
+        status_line = malloc(status_line_len + 1); // Allocate memory for the status line and null-terminator
+        sprintf(status_line, "%s %i\r\n", HTTP_VER, code); // Print the status line
     }
 
+    // Size for the status line, headers, body and null terminator
+    size_t response_size = status_line_len + headers_getlen(headers) + CRLF_LEN + body_len + 1;
+
+    char *buffer = calloc(response_size, sizeof(char)); // Allocate a buffer with the required memory
+
+    strcpy(buffer, status_line); // Copy the status line to the response buffer
+
     if (headers) {
-        for (i = 0; i < headers->num_headers; i++) {
-            sprintf(buffer + strlen(buffer), "%s\r\n", headers->headers[i]);
+        for (int i = 0; i < headers->num_headers; i++) {
+            strcat(buffer + status_line_len, headers->headers[i]); // Add the header
+            strcat(buffer, "\r\n"); // Add the header CRLF
         }
     }
 
     // Empty line before response body
-    sprintf(buffer + strlen(buffer), "\r\n");
+    strcat(buffer, "\r\n");
 
-    // Response body
-    if (body) {
-        sprintf(buffer + strlen(buffer), "%s\r\n", body);
+    //printf("Length is %li\n", body_len);
+
+    if (body)
+        memcpy(buffer + strlen(buffer), body,
+               (size_t) body_len); // Copy the body using memcpy (we're not always working with strings)
+
+//    // Response body
+//    if (body) {
+//        strcat(buffer, body);
+//        strcat(buffer, "\r\n");
+//    }
+//    strcat(buffer, "\r\n");
+
+    int ret = (int) send(socket, buffer, response_size, 0);
+    if (ret < 0) {
+        perror("Error while sending response");
     } else {
-        sprintf(buffer + strlen(buffer), "\r\n");
+        //printf("Sent %i bytes\n", ret);
     }
 
-    send(socket, buffer, strlen(buffer), 0);
-
-    if (DEBUG) {
+    if (DEBUG >= 2) {
         printf("--------------------\nResponse sent:\n%s\n", buffer);
     }
     close(socket);
 
+    free(status_line);
+
     return 0;
 }
 
-int httpreq_print(FILE *fd, struct request *request) {
-    int i;
-    if (!fd || !request) return -1;
-
-    fprintf(fd,
-            "httpreq_data:{\n\tmethod='%s' \n\tpath='%s' \n\tminor_version='%d'\n\tnum_headers='%zu'\n}\n",
-            request->method,
-            request->path, request->minor_version, request->num_headers);
-    for (i = 0; i < request->num_headers; ++i) {
-        fprintf(fd,
-                "headers:{\n\theader name='%.*s' \n\theader value='%.*s'\n}\n",
-                (int) request->headers->name_len, request->headers->name,
-                (int) request->headers->value_len, request->headers->value);
-    }
-    return 0;
-}
+//int httpreq_print(FILE *fd, struct request *request) {
+//    int i;
+//    if (!fd || !request) return -1;
+//
+//    fprintf(fd,
+//            "httpreq_data:{\n\tmethod='%s' \n\tpath='%s' \n\tminor_version='%d'\n\tnum_headers='%zu'\n}\n",
+//            request->method,
+//            request->path, request->minor_version, request->num_headers);
+//    for (i = 0; i < request->num_headers; ++i) {
+//        fprintf(fd,
+//                "headers:{\n\theader name='%.*s' \n\theader value='%.*s'\n}\n",
+//                (int) request->headers->name_len, request->headers->name,
+//                (int) request->headers->value_len, request->headers->value);
+//    }
+//    return 0;
+//}
 
 int resolution_get(int socket, struct request *request) {
     char webpath[300];
@@ -169,8 +201,8 @@ int resolution_get(int socket, struct request *request) {
     char *buffer = NULL;
     long length;
     //create header structure
-    struct httpResHeaders headers;
-    memset(&headers, 0, sizeof headers);
+    struct httpResHeaders *headers = create_header_struct();
+
     //create http date
     char timeStr[1000];
     time_t now = time(0);
@@ -182,7 +214,9 @@ int resolution_get(int socket, struct request *request) {
     strcat(webpath, request->path);
     //printf("%s", webpath);
 
-    set_header(&headers, HDR_DATE, timeStr);
+    set_header(headers, HDR_DATE, timeStr);
+
+    int returnCode;
 
     //si el archivo existe
     // TODO: Check if it's a directory or a file
@@ -191,29 +225,44 @@ int resolution_get(int socket, struct request *request) {
         fseek(f, 0, SEEK_END);
         length = ftell(f);
         fseek(f, 0, SEEK_SET);
-        buffer = calloc(length + 1, sizeof(char));
+        buffer = calloc((size_t) (length + 1), sizeof(char));
 
-        fread(buffer, sizeof(char), length, f);    //se introduce en el buffer el archivo
-        respond(socket, OK, "OK", &headers, buffer);
+        fread(buffer, sizeof(char), (size_t) length, f);    //se introduce en el buffer el archivo
+        if (ferror(f)) {
+            printf("Read error\n"); // TODO: Remove
+        }
+
+        char length_str[20];
+        memset(length_str, 0, 20);
+        sprintf(length_str, "%li", length);
+        set_header(headers, HDR_CONTENT_LENGTH, length_str);
+        //set_header(&headers, HDR_CONTENT_TYPE, "image/jpeg");
+        respond(socket, OK, "OK", headers, buffer, length);
         fclose(f);
-        return OK;
+        returnCode = OK;
     } else {
         if (errno == ENOENT) {
-            respond(socket, NOT_FOUND, "Not found", NULL, "Sorry, the requested resource was not found at this server");
-            return NOT_FOUND;
+            respond(socket, NOT_FOUND, "Not found", NULL, NULL, 0);
+            returnCode = NOT_FOUND;
         } else {
-            respond(socket, INTERNAL_ERROR, "Not found", NULL, "Sorry, the requested resource can't be accessed");
-            return INTERNAL_ERROR;
+            respond(socket, INTERNAL_ERROR, "Not found", NULL, NULL, 0);
+            returnCode = INTERNAL_ERROR;
         }
     }
+
+    headers_free(headers);
+
+    return returnCode;
 }
 
+// TODO: Implement
 int resolution_post(int socket, struct request *request) {
-    return 0;
+    return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
 }
 
+// TODO: Implement
 int resolution_options(int socket, struct request *request) {
-    return 0;
+    return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
 }
 
 STATUS set_header(struct httpResHeaders *headers, char *name, char *value) {
@@ -228,4 +277,29 @@ STATUS set_header(struct httpResHeaders *headers, char *name, char *value) {
 
     headers->num_headers++;
     return SUCCESS;
+}
+
+struct httpResHeaders *create_header_struct() {
+    struct httpResHeaders *new = malloc(sizeof(struct httpResHeaders));
+    new->headers = NULL;
+    new->num_headers = 0;
+    return new;
+}
+
+void headers_free(struct httpResHeaders *headers) {
+    for (int i = 0; i < headers->num_headers; i++) {
+        free(headers->headers[i]);
+    }
+    free(headers->headers);
+}
+
+int headers_getlen(struct httpResHeaders *headers) {
+    if (!headers) return 0;
+    int counter = 0;
+    for (int i = 0; i < headers->num_headers; i++) {
+        counter += (int) strlen(headers->headers[i]);
+        counter += CRLF_LEN; // also add the size of the CRLF header line terminator
+    }
+
+    return counter;
 }

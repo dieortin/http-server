@@ -12,6 +12,9 @@
 #ifndef PRACTICA1_SERVER_H
 #define PRACTICA1_SERVER_H
 
+#define DEFAULT_MAX_QUEUE 10
+#define DEFAULT_NTHREADS 2
+
 #include "constants.h"
 
 /**
