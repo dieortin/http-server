@@ -14,6 +14,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <zconf.h>
+
+#define MIMETYPE "mime.tsv"
 
 STATUS setDefaultHeaders(struct httpResHeaders *headers);
 
@@ -162,6 +166,7 @@ STATUS set_header(struct httpResHeaders *headers, char *name, char *value) {
     return SUCCESS;
 }
 
+
 STATUS send_file(int socket, struct httpResHeaders *headers, char *path) {
     char *buffer = NULL;
     long length;
@@ -192,6 +197,12 @@ STATUS send_file(int socket, struct httpResHeaders *headers, char *path) {
             return ERROR;
         }
         fread(buffer, sizeof(char), length, f);    //se introduce en el buffer el archivo
+
+        //crear headers de archivo
+        add_last_modified(path, headers);
+        add_content_type(path, headers);
+        add_content_length(length, headers);
+
         respond(socket, OK, "Solved", headers, buffer);
         fclose(f);
         return SUCCESS;
@@ -203,4 +214,58 @@ STATUS send_file(int socket, struct httpResHeaders *headers, char *path) {
         //respond(socket, INTERNAL_ERROR, "Not found", "Sorry, the requested resource can't be accessed");
         return ERROR;
     }
+}
+
+/*from https://github.com/Menghongli/C-Web-Server/blob/master/get-mime-type.c*/
+STATUS add_content_type(char *filePath, struct httpResHeaders *headers) {
+    char *content_name = NULL;
+    content_name = get_mime_type(filePath);
+    printf("%s", content_name);
+    return set_header(headers, Content_Type, content_name);
+}
+
+STATUS add_last_modified(char *filePath, struct httpResHeaders *headers) {
+    char t[100] = "";
+    struct stat b;
+    stat(filePath, &b);
+    strftime(t, 100, "%a, %d %b %Y %H:%M:%S %Z", localtime(&b.st_mtime));
+    printf("\nLast modified date and time = %s\n", t);
+    return set_header(headers, Last_Modified, t);
+}
+
+
+STATUS add_content_length(long length, struct httpResHeaders *headers) {
+    char len_str[10];
+    sprintf(len_str, "%li", length);
+    return set_header(headers, Content_Length, len_str);
+};
+
+char *get_mime_type(char *name) {
+    char *ext = strrchr(name, '.');
+    char delimiters[] = " ";
+    char *mime_type = NULL;
+    mime_type = malloc(128 * sizeof(char));
+    char line[128];
+    char *token;
+    int line_counter = 1;
+    ext++; // skip the '.';
+    FILE *mime_type_file = fopen(MIMETYPE, "r");
+    if (mime_type_file != NULL) {
+        while (fgets(line, sizeof line, mime_type_file) != NULL) {
+            if (line_counter > 1) {
+                if ((token = strtok(line, delimiters)) != NULL) {
+                    if (strcmp(token, ext) == 0) {
+                        token = strtok(NULL, delimiters);
+                        strcpy(mime_type, token);
+                        break;
+                    }
+                }
+            }
+            line_counter++;
+        }
+        fclose(mime_type_file);
+    } else {
+        perror("open");
+    }
+    return mime_type;
 }
