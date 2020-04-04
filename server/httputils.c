@@ -14,6 +14,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <zconf.h>
+
+#define MIMETYPE "mime.tsv"
+
+STATUS setDefaultHeaders(struct httpResHeaders *headers);
 
 #define CRLF_LEN strlen("\r\n") ///< Length of the string containing the response code (always three digit)
 
@@ -193,32 +199,57 @@ int respond(int socket, unsigned int code, char *message, struct httpResHeaders 
 //}
 
 int resolution_get(int socket, struct request *request) {
+    //create header structure
+    struct httpResHeaders *headers = create_header_struct();
+
+
+    setDefaultHeaders(headers);
+
+    return send_file(socket, headers, request->path);
+}
+
+STATUS setDefaultHeaders(struct httpResHeaders *headers) {
+    char timeStr[100];
+    time_t now = time(0);
+    struct tm tm = *gmtime(&now);
+    strftime(timeStr, sizeof timeStr, "%a, %d %b %Y %H:%M:%S %Z", &tm);
+    //create date header
+    set_header(headers, HDR_DATE, timeStr);
+    //create server header
+    set_header(headers, HDR_SERVER_ORIGIN, "httpServer");
+    return SUCCESS;
+}
+
+STATUS set_header(struct httpResHeaders *headers, char *name, char *value) {
+    if (headers->num_headers == 0) {
+        headers->headers = calloc(1, sizeof(char *));
+    } else {
+        headers->headers = realloc(headers->headers, (headers->num_headers + 1) * sizeof(char *));
+    }
+
+    headers->headers[headers->num_headers] = calloc(strlen(name) + strlen(value) + HEADER_EXTRA_SPACE, sizeof(char));
+    sprintf(headers->headers[headers->num_headers], "%s: %s", name, value);
+
+    headers->num_headers++;
+    return SUCCESS;
+}
+
+
+STATUS send_file(int socket, struct httpResHeaders *headers, char *path) {
+    char *buffer = NULL;
+    long length;
     char webpath[300];
     char cwd[200];
     memset(webpath, 0, 300 * sizeof(char));
     memset(cwd, 0, 200 * sizeof(char));
     getcwd(cwd, 200);
-    char *buffer = NULL;
-    long length;
-    //create header structure
-    struct httpResHeaders *headers = create_header_struct();
-
-    //create http date
-    char timeStr[1000];
-    time_t now = time(0);
-    struct tm tm = *gmtime(&now);
-    strftime(timeStr, sizeof timeStr, "%a, %d %b %Y %H:%M:%S %Z", &tm);
 
     strcpy(webpath, cwd);
     strcat(webpath, "/www");
-    strcat(webpath, request->path);
-    //printf("%s", webpath);
-
-    set_header(headers, HDR_DATE, timeStr);
+    strcat(webpath, path);
 
     int returnCode;
 
-    //si el archivo existe
     // TODO: Check if it's a directory or a file
     FILE *f = fopen(webpath, "r");
     if (f) {
@@ -237,6 +268,12 @@ int resolution_get(int socket, struct request *request) {
         sprintf(length_str, "%li", length);
         set_header(headers, HDR_CONTENT_LENGTH, length_str);
         //set_header(&headers, HDR_CONTENT_TYPE, "image/jpeg");
+
+        //crear headers de archivo
+        add_last_modified(path, headers);
+        add_content_type(path, headers);
+        add_content_length(length, headers);
+
         respond(socket, OK, "OK", headers, buffer, length);
         fclose(f);
         returnCode = OK;
@@ -260,23 +297,63 @@ int resolution_post(int socket, struct request *request) {
     return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
 }
 
+/*from https://github.com/Menghongli/C-Web-Server/blob/master/get-mime-type.c*/
+STATUS add_content_type(char *filePath, struct httpResHeaders *headers) {
+    char *content_name = NULL;
+    content_name = get_mime_type(filePath);
+    printf("%s", content_name);
+    return set_header(headers, HDR_CONTENT_TYPE, content_name);
+}
+
 // TODO: Implement
 int resolution_options(int socket, struct request *request) {
     return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
 }
 
-STATUS set_header(struct httpResHeaders *headers, char *name, char *value) {
-    if (headers->num_headers == 0) {
-        headers->headers = calloc(1, sizeof(char *));
+STATUS add_last_modified(char *filePath, struct httpResHeaders *headers) {
+    char t[100] = "";
+    struct stat b;
+    stat(filePath, &b);
+    strftime(t, 100, "%a, %d %b %Y %H:%M:%S %Z", localtime(&b.st_mtime));
+    printf("\nLast modified date and time = %s\n", t);
+    return set_header(headers, HDR_LAST_MODIFIED, t);
+}
+
+
+STATUS add_content_length(long length, struct httpResHeaders *headers) {
+    char len_str[10];
+    sprintf(len_str, "%li", length);
+    return set_header(headers, HDR_CONTENT_LENGTH, len_str);
+}
+
+char *get_mime_type(char *name) {
+    char *ext = strrchr(name, '.');
+    char delimiters[] = " ";
+    char *mime_type = NULL;
+    mime_type = malloc(128 * sizeof(char));
+    char line[128];
+    char *token;
+    int line_counter = 1;
+    ext++; // skip the '.';
+    FILE *mime_type_file = fopen(MIMETYPE, "r");
+    if (mime_type_file != NULL) {
+        while (fgets(line, sizeof line, mime_type_file) != NULL) {
+            if (line_counter > 1) {
+                if ((token = strtok(line, delimiters)) != NULL) {
+                    if (strcmp(token, ext) == 0) {
+                        token = strtok(NULL, delimiters);
+                        strcpy(mime_type, token);
+                        break;
+                    }
+                }
+            }
+            line_counter++;
+        }
+        fclose(mime_type_file);
     } else {
-        headers->headers = realloc(headers->headers, (headers->num_headers + 1) * sizeof(char *));
+        perror("open");
     }
-
-    headers->headers[headers->num_headers] = calloc(strlen(name) + strlen(value) + HEADER_EXTRA_SPACE, sizeof(char));
-    sprintf(headers->headers[headers->num_headers], "%s: %s", name, value);
-
-    headers->num_headers++;
-    return SUCCESS;
+    return mime_type;
 }
 
 struct httpResHeaders *create_header_struct() {

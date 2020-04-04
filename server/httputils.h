@@ -55,6 +55,16 @@ void headers_free(struct httpResHeaders *headers);
 
 int headers_getlen(struct httpResHeaders *headers);
 
+STATUS send_file(int socket, struct httpResHeaders *headers, char *path);
+
+STATUS add_last_modified(char *filePath, struct httpResHeaders *headers);
+
+char *get_mime_type(char *name);
+
+STATUS add_content_type(char *filePath, struct httpResHeaders *headers);
+
+STATUS add_content_length(long length, struct httpResHeaders *headers);
+
 typedef enum _HTTP_SUCCESS {
     OK = 200,
     CREATED = 201,
