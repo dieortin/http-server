@@ -12,4 +12,6 @@ target_link_libraries(practica1 ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(queue_test queue.c queue.h queue_test.c)
 
+add_executable(mimetable_test mimetable.c mimetable.h mimetable_test.c)
+
 #add_executable(readconfig_test readconfig_test.c readconfig.c readconfig.h uthash.h)
