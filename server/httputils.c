@@ -15,7 +15,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include <sys/stat.h>
-#include <zconf.h>
 
 #define MIMETYPE "mime.tsv"
 
@@ -235,7 +234,7 @@ STATUS set_header(struct httpResHeaders *headers, char *name, char *value) {
 }
 
 
-STATUS send_file(int socket, struct httpResHeaders *headers, char *path) {
+STATUS send_file(int socket, struct httpResHeaders *headers, const char *path) {
     char *buffer = NULL;
     long length;
     char webpath[300];
@@ -297,25 +296,23 @@ int resolution_post(int socket, struct request *request) {
     return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
 }
 
-/*from https://github.com/Menghongli/C-Web-Server/blob/master/get-mime-type.c*/
-STATUS add_content_type(char *filePath, struct httpResHeaders *headers) {
-    char *content_name = NULL;
-    content_name = get_mime_type(filePath);
-    printf("%s", content_name);
-    return set_header(headers, HDR_CONTENT_TYPE, content_name);
-}
-
 // TODO: Implement
 int resolution_options(int socket, struct request *request) {
     return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
 }
 
-STATUS add_last_modified(char *filePath, struct httpResHeaders *headers) {
+/*from https://github.com/Menghongli/C-Web-Server/blob/master/get-mime-type.c*/
+STATUS add_content_type(const char *filePath, struct httpResHeaders *headers) {
+    char *content_name = NULL;
+    content_name = get_mime_type(filePath);
+    return set_header(headers, HDR_CONTENT_TYPE, content_name);
+}
+
+STATUS add_last_modified(const char *filePath, struct httpResHeaders *headers) {
     char t[100] = "";
     struct stat b;
     stat(filePath, &b);
     strftime(t, 100, "%a, %d %b %Y %H:%M:%S %Z", localtime(&b.st_mtime));
-    printf("\nLast modified date and time = %s\n", t);
     return set_header(headers, HDR_LAST_MODIFIED, t);
 }
 
@@ -326,15 +323,16 @@ STATUS add_content_length(long length, struct httpResHeaders *headers) {
     return set_header(headers, HDR_CONTENT_LENGTH, len_str);
 }
 
-char *get_mime_type(char *name) {
+char *get_mime_type(const char *name) {
     char *ext = strrchr(name, '.');
+    ext++; // skip the '.';
+
     char delimiters[] = " ";
     char *mime_type = NULL;
     mime_type = malloc(128 * sizeof(char));
     char line[128];
     char *token;
     int line_counter = 1;
-    ext++; // skip the '.';
     FILE *mime_type_file = fopen(MIMETYPE, "r");
     if (mime_type_file != NULL) {
         while (fgets(line, sizeof line, mime_type_file) != NULL) {

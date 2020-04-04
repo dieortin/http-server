@@ -55,13 +55,13 @@ void headers_free(struct httpResHeaders *headers);
 
 int headers_getlen(struct httpResHeaders *headers);
 
-STATUS send_file(int socket, struct httpResHeaders *headers, char *path);
+STATUS send_file(int socket, struct httpResHeaders *headers, const char *path);
 
-STATUS add_last_modified(char *filePath, struct httpResHeaders *headers);
+STATUS add_last_modified(const char *filePath, struct httpResHeaders *headers);
 
-char *get_mime_type(char *name);
+char *get_mime_type(const char *name);
 
-STATUS add_content_type(char *filePath, struct httpResHeaders *headers);
+STATUS add_content_type(const char *filePath, struct httpResHeaders *headers);
 
 STATUS add_content_length(long length, struct httpResHeaders *headers);
 
