@@ -305,14 +305,10 @@ void server_logv(const char *title, const char *titlecolor, const char *subtitle
 }
 
 void server_http_log(const char *format, ...) {
-    char *timestr = get_time_str();
-
-    printf("%s%s %s[HTTP]%s ", YEL, timestr, BLU, reset); // TODO: Allow printing to other files (syslog?)
     va_list args;
     va_start(args, format);
-    vprintf(format, args);
+    server_logv("HTTP", BLU, NULL, NULL, format, args);
     va_end(args);
-    printf("\n");
 }
 
 char *get_time_str() {

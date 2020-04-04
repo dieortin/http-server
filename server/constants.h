@@ -7,7 +7,7 @@
 
 #ifndef PRACTICA1_CONSTANTS_H
 
-#define DEBUG 2 ///< Sets the level of debugging logs. A value of 0 disables them.
+#define DEBUG 1 ///< Sets the level of debugging logs. A value of 0 disables them.
 
 #define CONFIG_PATH "/server/server.cfg"    ///< Path of the folder where the configuration file is located
 ///< relative to the main server directory
