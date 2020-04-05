@@ -74,10 +74,10 @@ const char *mime_get_association(const char *extension) {
 
 #pragma clang diagnostic pop
 
-STATUS mime_add_from_file(const char *path) {
-    if (!path) return ERROR;
+STATUS mime_add_from_file(const char *filename) {
+    if (!filename) return ERROR;
 
-    FILE *mimefd = fopen(path, "r");
+    FILE *mimefd = fopen(filename, "r");
     if (!mimefd) { // In case any error ocurred while opening the MIME file
         // TODO: Print to logs
 #if DEBUG >= 1

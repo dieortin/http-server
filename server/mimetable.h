@@ -17,13 +17,13 @@
  * @brief Parses a file containing extension-MIMEtype associations, and adds them to the MIME table
  * @author Diego Ortín Fernández
  * @date 5 April 2020
- * @pre File located in @p path must contain one association per line, with the extension first, separated from the
+ * @pre File located in @p filename must contain one association per line, with the extension first, separated from the
  * MIME type by a tab character: <extension>\\t<mimetype>\\n
- * @param path[in] The path of the file to parse
+ * @param filename[in] The filename of the file to parse
  * @return @ref STATUS.SUCCESS if at least one association was added successfully, @ref STATUS.ERROR if any error
  * ocurred or if no associations were added successfully.
  */
-STATUS mime_add_from_file(const char *path);
+STATUS mime_add_from_file(const char *filename);
 
 /**
  * @brief Retrieves the MIME type associated with the provided extension
