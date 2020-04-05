@@ -7,11 +7,11 @@ find_package(Threads)
 
 add_executable(practica1 main.c httputils.c httputils.h readconfig.c readconfig.h
         constants.h picohttpparser.c picohttpparser.h server.c server.h colorcodes.h
-        uthash.h queue.c queue.h)
+        uthash.h queue.c queue.h mimetable.c mimetable.h)
 target_link_libraries(practica1 ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(queue_test queue.c queue.h queue_test.c)
+add_executable(queue_test queue.c queue.h test/queue_test.c)
 
-add_executable(mimetable_test mimetable.c mimetable.h mimetable_test.c)
+add_executable(mimetable_test mimetable.c mimetable.h test/mimetable_test.c)
 
 #add_executable(readconfig_test readconfig_test.c readconfig.c readconfig.h uthash.h)

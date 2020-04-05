@@ -3,7 +3,7 @@
 //
 
 #include <assert.h>
-#include "queue.h"
+#include "../queue.h"
 
 int main() {
     queue *q = queue_create(20);
