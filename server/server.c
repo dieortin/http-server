@@ -20,6 +20,7 @@
 #include "readconfig.h"
 #include "colorcodes.h"
 #include "queue.h"
+#include "mimetable.h"
 
 // Private functions
 
@@ -99,6 +100,21 @@ server_init(char *config_filename, SERVERCMD (*request_processor)(int, void (*)(
         return NULL;
     }
 
+    int ret;
+    char *mimefile;
+    if ((ret = config_getparam_str(&srv->config, PARAMS_MIME_FILE, &mimefile)) != 0) {
+        server_log("ERROR: could not fetch MIME file name (%s)\n", readconfig_perror(ret));
+        free(srv);
+        return NULL;
+    };
+
+    server_log("Parsing the MIME file (%s)...", mimefile);
+    if (mime_add_from_file(mimefile) == ERROR) {
+        server_log("ERROR: could not add MIME types from file (%s)", mimefile);
+        free(srv);
+        return NULL;
+    }
+
     char *ipaddr;
     config_getparam_str(&srv->config, PARAMS_ADDRESS, &ipaddr);
 
@@ -108,7 +124,7 @@ server_init(char *config_filename, SERVERCMD (*request_processor)(int, void (*)(
     inet_pton(AF_INET, ipaddr, &srv->address.sin_addr.s_addr);
 
     // Retrieve the port number from the configuration file
-    int port, ret;
+    int port;
     if ((ret = config_getparam_int(&srv->config, PARAMS_PORT, &port)) != 0) {
         server_log("ERROR: could not fetch port value (%s)\n", readconfig_perror(ret));
         free(srv);

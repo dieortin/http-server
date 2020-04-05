@@ -6,6 +6,7 @@
  */
 #include "httputils.h"
 #include "constants.h"
+#include "mimetable.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -208,6 +209,8 @@ int resolution_get(int socket, struct request *request) {
 }
 
 STATUS setDefaultHeaders(struct httpResHeaders *headers) {
+    if (!headers) return ERROR;
+
     char timeStr[100];
     time_t now = time(0);
     struct tm tm = *gmtime(&now);
@@ -219,7 +222,9 @@ STATUS setDefaultHeaders(struct httpResHeaders *headers) {
     return SUCCESS;
 }
 
-STATUS set_header(struct httpResHeaders *headers, char *name, char *value) {
+STATUS set_header(struct httpResHeaders *headers, const char *name, const char *value) {
+    if (!headers || !name || !value) return ERROR;
+
     if (headers->num_headers == 0) {
         headers->headers = calloc(1, sizeof(char *));
     } else {
@@ -235,6 +240,8 @@ STATUS set_header(struct httpResHeaders *headers, char *name, char *value) {
 
 
 STATUS send_file(int socket, struct httpResHeaders *headers, const char *path) {
+    if (!headers || !path) return ERROR;
+
     char *buffer = NULL;
     long length;
     char webpath[300];
@@ -303,8 +310,11 @@ int resolution_options(int socket, struct request *request) {
 
 /*from https://github.com/Menghongli/C-Web-Server/blob/master/get-mime-type.c*/
 STATUS add_content_type(const char *filePath, struct httpResHeaders *headers) {
-    char *content_name = NULL;
+    const char *content_name = NULL;
     content_name = get_mime_type(filePath);
+
+    if (!content_name) return ERROR;
+
     return set_header(headers, HDR_CONTENT_TYPE, content_name);
 }
 
@@ -323,35 +333,11 @@ STATUS add_content_length(long length, struct httpResHeaders *headers) {
     return set_header(headers, HDR_CONTENT_LENGTH, len_str);
 }
 
-char *get_mime_type(const char *name) {
+const char *get_mime_type(const char *name) {
     char *ext = strrchr(name, '.');
     ext++; // skip the '.';
 
-    char delimiters[] = " ";
-    char *mime_type = NULL;
-    mime_type = malloc(128 * sizeof(char));
-    char line[128];
-    char *token;
-    int line_counter = 1;
-    FILE *mime_type_file = fopen(MIMETYPE, "r");
-    if (mime_type_file != NULL) {
-        while (fgets(line, sizeof line, mime_type_file) != NULL) {
-            if (line_counter > 1) {
-                if ((token = strtok(line, delimiters)) != NULL) {
-                    if (strcmp(token, ext) == 0) {
-                        token = strtok(NULL, delimiters);
-                        strcpy(mime_type, token);
-                        break;
-                    }
-                }
-            }
-            line_counter++;
-        }
-        fclose(mime_type_file);
-    } else {
-        perror("open");
-    }
-    return mime_type;
+    return mime_get_association(ext);
 }
 
 struct httpResHeaders *create_header_struct() {

@@ -49,7 +49,7 @@ int resolution_options(int socket, struct request *request);
 
 struct httpResHeaders *create_header_struct();
 
-STATUS set_header(struct httpResHeaders *headers, char *name, char *value);
+STATUS set_header(struct httpResHeaders *headers, const char *name, const char *value);
 
 void headers_free(struct httpResHeaders *headers);
 
@@ -59,7 +59,7 @@ STATUS send_file(int socket, struct httpResHeaders *headers, const char *path);
 
 STATUS add_last_modified(const char *filePath, struct httpResHeaders *headers);
 
-char *get_mime_type(const char *name);
+const char *get_mime_type(const char *name);
 
 STATUS add_content_type(const char *filePath, struct httpResHeaders *headers);
 

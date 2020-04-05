@@ -73,7 +73,8 @@ enum USER_PARAMS {
     PARAMS_PORT,
     PARAMS_WEBROOT,
     PARAMS_NTHREADS,
-    PARAMS_QUEUE_SIZE
+    PARAMS_QUEUE_SIZE,
+    PARAMS_MIME_FILE
 };
 
 /**
@@ -89,7 +90,7 @@ static const struct supported_param USERPARAMS_META[] = {
         {"WEBROOT",    PARTYPE_STRING},
         {"NTHREADS",   PARTYPE_INTEGER},
         {"QUEUE_SIZE", PARTYPE_INTEGER},
-        {"NTHREADS",   PARTYPE_INTEGER}
+        {"MIME_FILE", PARTYPE_STRING}
 };
 
 #define USERPARAMS_NUM (sizeof(USERPARAMS_META) / sizeof(USERPARAMS_META[0])) ///< Number of supported parameters
