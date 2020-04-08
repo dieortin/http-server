@@ -13,15 +13,18 @@
 #define GET "GET"
 #define POST "POST"
 #define OPTIONS "OPTIONS"
+#define ALLOWED_OPTIONS "GET, POST, OPTIONS"
 
 #define HDR_DATE "Date"
 #define HDR_SERVER_ORIGIN "Server"
 #define HDR_LAST_MODIFIED "Last-Modified"
 #define HDR_CONTENT_LENGTH "Content-Length"
 #define HDR_CONTENT_TYPE "Content-Type"
+#define HDR_ALLOW "Allow"
 
 #define HEADER_EXTRA_SPACE 3 ///< Space required for ": " and the null termination character in the headers
 
+#define INDEX_PATH "/index.html"
 
 struct request {
     const char *method, *path;
@@ -55,7 +58,7 @@ void headers_free(struct httpResHeaders *headers);
 
 int headers_getlen(struct httpResHeaders *headers);
 
-STATUS send_file(int socket, struct httpResHeaders *headers, const char *path);
+int send_file(int socket, struct httpResHeaders *headers, const char *path);
 
 STATUS add_last_modified(const char *filePath, struct httpResHeaders *headers);
 

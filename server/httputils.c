@@ -17,8 +17,6 @@
 #include <time.h>
 #include <sys/stat.h>
 
-#define MIMETYPE "mime.tsv"
-
 STATUS setDefaultHeaders(struct httpResHeaders *headers);
 
 #define CRLF_LEN strlen("\r\n") ///< Length of the string containing the response code (always three digit)
@@ -100,6 +98,7 @@ SERVERCMD processHTTPRequest(int socket, void (*log)(const char *, ...)) {
 
     log("%s %s %i", request->method, request->path, code);
 
+    free(buffer);
     freeRequest(request);
 
     return CONTINUE; /// Tell the server to continue accepting requests
@@ -157,13 +156,6 @@ int respond(int socket, unsigned int code, char *message, struct httpResHeaders 
         memcpy(buffer + strlen(buffer), body,
                (size_t) body_len); // Copy the body using memcpy (we're not always working with strings)
 
-//    // Response body
-//    if (body) {
-//        strcat(buffer, body);
-//        strcat(buffer, "\r\n");
-//    }
-//    strcat(buffer, "\r\n");
-
     int ret = (int) send(socket, buffer, response_size, 0);
     if (ret < 0) {
         perror("Error while sending response");
@@ -176,6 +168,7 @@ int respond(int socket, unsigned int code, char *message, struct httpResHeaders 
     }
     close(socket);
 
+    free(buffer);
     free(status_line);
 
     return 0;
@@ -202,10 +195,33 @@ int resolution_get(int socket, struct request *request) {
     //create header structure
     struct httpResHeaders *headers = create_header_struct();
 
-
     setDefaultHeaders(headers);
 
-    return send_file(socket, headers, request->path);
+    int ret = 0;
+
+    if (strcmp(request->path, "/") == 0) { // If the browser gets a request for the server root
+        ret = send_file(socket, headers, INDEX_PATH); // Attempt to serve the index file
+    } else {
+        ret = send_file(socket, headers, request->path);
+    }
+
+    headers_free(headers);
+    return ret;
+}
+
+// TODO: Implement
+int resolution_post(int socket, struct request *request) {
+    return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
+}
+
+// TODO: Implement
+int resolution_options(int socket, struct request *request) {
+    struct httpResHeaders *headers = create_header_struct();
+    setDefaultHeaders(headers);
+
+    set_header(headers, HDR_ALLOW, ALLOWED_OPTIONS);
+
+    return respond(socket, NO_CONTENT, "No Content", NULL, NULL, 0);
 }
 
 STATUS setDefaultHeaders(struct httpResHeaders *headers) {
@@ -222,24 +238,16 @@ STATUS setDefaultHeaders(struct httpResHeaders *headers) {
     return SUCCESS;
 }
 
-STATUS set_header(struct httpResHeaders *headers, const char *name, const char *value) {
-    if (!headers || !name || !value) return ERROR;
+int is_directory(const char *path) {
+    if (!path) return -1;
 
-    if (headers->num_headers == 0) {
-        headers->headers = calloc(1, sizeof(char *));
-    } else {
-        headers->headers = realloc(headers->headers, (headers->num_headers + 1) * sizeof(char *));
-    }
+    if (path[strlen(path) - 1] == '/') return 1;
 
-    headers->headers[headers->num_headers] = calloc(strlen(name) + strlen(value) + HEADER_EXTRA_SPACE, sizeof(char));
-    sprintf(headers->headers[headers->num_headers], "%s: %s", name, value);
-
-    headers->num_headers++;
-    return SUCCESS;
+    return 0;
 }
 
 
-STATUS send_file(int socket, struct httpResHeaders *headers, const char *path) {
+int send_file(int socket, struct httpResHeaders *headers, const char *path) {
     if (!headers || !path) return ERROR;
 
     char *buffer = NULL;
@@ -257,6 +265,11 @@ STATUS send_file(int socket, struct httpResHeaders *headers, const char *path) {
     int returnCode;
 
     // TODO: Check if it's a directory or a file
+    if (is_directory(path)) {
+        respond(socket, FORBIDDEN, "Forbidden", headers, NULL, 0);
+        headers_free(headers);
+        return FORBIDDEN;
+    }
     FILE *f = fopen(webpath, "r");
     if (f) {
         fseek(f, 0, SEEK_END);
@@ -269,18 +282,14 @@ STATUS send_file(int socket, struct httpResHeaders *headers, const char *path) {
             printf("Read error\n"); // TODO: Remove
         }
 
-        char length_str[20];
-        memset(length_str, 0, 20);
-        sprintf(length_str, "%li", length);
-        set_header(headers, HDR_CONTENT_LENGTH, length_str);
-        //set_header(&headers, HDR_CONTENT_TYPE, "image/jpeg");
-
         //crear headers de archivo
         add_last_modified(path, headers);
         add_content_type(path, headers);
         add_content_length(length, headers);
 
         respond(socket, OK, "OK", headers, buffer, length);
+        free(buffer);
+
         fclose(f);
         returnCode = OK;
     } else {
@@ -293,19 +302,7 @@ STATUS send_file(int socket, struct httpResHeaders *headers, const char *path) {
         }
     }
 
-    headers_free(headers);
-
     return returnCode;
-}
-
-// TODO: Implement
-int resolution_post(int socket, struct request *request) {
-    return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
-}
-
-// TODO: Implement
-int resolution_options(int socket, struct request *request) {
-    return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
 }
 
 /*from https://github.com/Menghongli/C-Web-Server/blob/master/get-mime-type.c*/
@@ -321,8 +318,10 @@ STATUS add_content_type(const char *filePath, struct httpResHeaders *headers) {
 STATUS add_last_modified(const char *filePath, struct httpResHeaders *headers) {
     char t[100] = "";
     struct stat b;
+    memset(&b, 0, sizeof(struct stat));
+
     stat(filePath, &b);
-    strftime(t, 100, "%a, %d %b %Y %H:%M:%S %Z", localtime(&b.st_mtime));
+    strftime(t, sizeof t, "%a, %d %b %Y %H:%M:%S %Z", localtime(&b.st_mtime));
     return set_header(headers, HDR_LAST_MODIFIED, t);
 }
 
@@ -334,7 +333,11 @@ STATUS add_content_length(long length, struct httpResHeaders *headers) {
 }
 
 const char *get_mime_type(const char *name) {
+    if (!name) return NULL;
+
     char *ext = strrchr(name, '.');
+
+    if (!ext) return NULL;
     ext++; // skip the '.';
 
     return mime_get_association(ext);
@@ -347,11 +350,37 @@ struct httpResHeaders *create_header_struct() {
     return new;
 }
 
+STATUS set_header(struct httpResHeaders *headers, const char *name, const char *value) {
+    if (!headers || !name || !value) return ERROR;
+
+    if (headers->num_headers == 0) { // If the array didn't exist, create it
+        headers->headers = calloc(1, sizeof(char *));
+    } else {
+        headers->headers = realloc(headers->headers, (headers->num_headers + 1) * sizeof(char *));
+    }
+
+    // Calculate the needed size for allocating the header string plus the null terminator
+    size_t needed_size = snprintf(NULL, 0, "%s: %s", name, value) + 1;
+
+    // Allocate space for the string
+    headers->headers[headers->num_headers] = malloc(sizeof(char) * needed_size);
+
+    // Produce the header string
+    snprintf(headers->headers[headers->num_headers], needed_size, "%s: %s", name, value);
+
+    headers->num_headers++;
+    return SUCCESS;
+}
+
 void headers_free(struct httpResHeaders *headers) {
+    if (!headers) return;
+
     for (int i = 0; i < headers->num_headers; i++) {
         free(headers->headers[i]);
     }
-    free(headers->headers);
+    if (headers->headers) free(headers->headers);
+
+    free(headers);
 }
 
 int headers_getlen(struct httpResHeaders *headers) {

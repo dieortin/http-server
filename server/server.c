@@ -106,7 +106,7 @@ server_init(char *config_filename, SERVERCMD (*request_processor)(int, void (*)(
         server_log("ERROR: could not fetch MIME file name (%s)\n", readconfig_perror(ret));
         free(srv);
         return NULL;
-    };
+    }
 
     server_log("Parsing the MIME file (%s)...", mimefile);
     if (mime_add_from_file(mimefile) == ERROR) {
@@ -281,7 +281,9 @@ void *connectionHandler(void *p) {
         sem_wait(srv->sem);
 
         int socket = get_connection(srv);
+#if DEBUG >= 2
         server_thread_log(thread_id, "Thread processing request on socket [%i]", socket);
+#endif
 
         if (srv->request_processor(socket, server_http_log) == STOP) {
             return NULL;
