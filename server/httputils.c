@@ -137,6 +137,7 @@ int respond(int socket, unsigned int code, char *message, struct httpResHeaders 
     size_t response_size = status_line_len + headers_getlen(headers) + CRLF_LEN + body_len + 1;
 
     char *buffer = calloc(response_size, sizeof(char)); // Allocate a buffer with the required memory
+    if (!buffer) return -1;
 
     strcpy(buffer, status_line); // Copy the status line to the response buffer
 
@@ -221,7 +222,10 @@ int resolution_options(int socket, struct request *request) {
 
     set_header(headers, HDR_ALLOW, ALLOWED_OPTIONS);
 
-    return respond(socket, NO_CONTENT, "No Content", NULL, NULL, 0);
+    respond(socket, NO_CONTENT, "No Content", headers, NULL, 0);
+    headers_free(headers);
+
+    return NO_CONTENT;
 }
 
 STATUS setDefaultHeaders(struct httpResHeaders *headers) {
