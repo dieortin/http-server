@@ -138,3 +138,5 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+/www/
+/.idea/
