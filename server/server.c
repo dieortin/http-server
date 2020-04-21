@@ -32,20 +32,8 @@
  */
 void server_log(FILE *file, const char *format, ...);
 
-/**
- * @brief Adds an accepted connection to the connection queue
- * @param[in] srv The server to which the connection must be added
- * @param[in] socket The socket of the accepted connection
- */
 void add_connection(Server *srv, int socket);
 
-/**
- * @brief Obtains a connection from the accepted connection queue
- * @details Blocks execution until a new connection is available in the accepted connection queue, then extracts it
- * from the queue and resumes execution
- * @param[in] srv The server from which the connection must be extracted
- * @return The socket of the accepted connection
- */
 int get_connection(Server *srv);
 
 void *connectionHandler(void *p);
@@ -60,13 +48,14 @@ void server_http_log(FILE *file, const char *format, ...);
 
 char *get_time_str();
 
+char *get_full_webroot(const char *webroot);
+
 /**
  * @struct _server
  * @brief Stores all the data of the server. Most of it is filled in when the #server_init function
  * is called, and the rest when #server_start is called.
  */
 struct _server {
-    //struct configuration config; ///< A #configuration structure containing the user defined parameters
     const struct config_param *config; ///< Dictionary which contains the user defined parameters for the server
     struct sockaddr_in address; ///< A #sockaddr_in structure containing the parameters for socket binding
     int addrlen; ///< Contains the length of the #_server.address structure
@@ -196,6 +185,30 @@ STATUS server_free(Server *srv) {
     return SUCCESS;
 }
 
+/**
+ * @brief Sets the socket options for the server socket
+ * @pre The socket must have been created previously
+ * @param[in] socket The socket to set options for
+ * @return \ref STATUS.ERROR if any error occurs, \ref STATUS.SUCCESS otherwise
+ */
+STATUS server_setsockopts(int socket) {
+    int flag = 1;
+
+    if ((setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof flag)) < 0) {
+        server_log(stderr, "Socket creation failed");
+        perror("Options failed: SOL_REUSEADDR");
+        return ERROR;
+    }
+
+    if ((setsockopt(socket, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof flag)) < 0) {
+        server_log(stderr, "Socket creation failed");
+        perror("Options failed: SOL_REUSEPORT");
+        return ERROR;
+    }
+
+    return SUCCESS;
+}
+
 STATUS server_start(Server *srv) {
     if (!srv) return ERROR;
 
@@ -214,19 +227,7 @@ STATUS server_start(Server *srv) {
         return ERROR;
     }
 
-    int flag = 1;
-
-    if ((setsockopt(srv->socket_descriptor, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof flag)) < 0) {
-        server_log(stderr, "Socket creation failed");
-        perror("Options failed: SOL_REUSEADDR");
-        return ERROR;
-    }
-
-    if ((setsockopt(srv->socket_descriptor, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof flag)) < 0) {
-        server_log(stderr, "Socket creation failed");
-        perror("Options failed: SOL_REUSEPORT");
-        return ERROR;
-    }
+    server_setsockopts(srv->socket_descriptor);
 
     server_log(stdout, "Starting server on port %i...", port);
 
@@ -245,20 +246,7 @@ STATUS server_start(Server *srv) {
 
     server_log(stdout, "Server listening on port %i", port);
 
-    // Get the current working directory
-    // When buf == NULL, getcwd allocates the buffer
-    // When size == 0, getcwd allocates as much space as needed
-    char *cwd = getcwd(NULL, 0);
-
-    // Calculate the size needed for the entire webroot plus the null terminator
-    size_t webroot_full_size = strlen(cwd) + strlen(webroot) + 1;
-
-    // Allocate enough memory for the full webroot
-    char *full_webroot = malloc(sizeof(char) * webroot_full_size);
-
-    // Concatenate the current working directory and the webroot to form the full webroot
-    strcat(full_webroot, cwd);
-    strcat(full_webroot, webroot);
+    char *full_webroot = get_full_webroot(webroot);
 
 #if DEBUG >= 1
     server_log(stdout, "The full path for the webroot is '%s'", full_webroot);
@@ -295,16 +283,46 @@ STATUS server_start(Server *srv) {
     //return SUCCESS;
 }
 
-int get_connection(Server *srv) {
-    int socket;
+char *get_full_webroot(const char *webroot) {
+    if (!webroot) return NULL;
 
-    sem_wait(srv->sem); // Wait for a connection to be posted
+    // Get the current working directory
+    // When buf == NULL, getcwd allocates the buffer
+    // When size == 0, getcwd allocates as much space as needed
+    char *cwd = getcwd(NULL, 0);
 
-    socket = queue_pop(srv->queue);
+    // Calculate the size needed for the entire webroot plus the null terminator
+    size_t webroot_full_size = strlen(cwd) + strlen(webroot) + 1;
 
-    return socket;
+    // Allocate enough memory for the full webroot
+    char *full_webroot = malloc(sizeof(char) * webroot_full_size);
+
+    // Concatenate the current working directory and the webroot to form the full webroot
+    strcat(full_webroot, cwd);
+    strcat(full_webroot, webroot);
+    free(cwd);
+
+    return full_webroot;
 }
 
+/**
+ * @brief Obtains a new connection from the queue
+ * @details This function is a wrapper around the #queue_pop function from the queue.h module. This operation is
+ * blocking if there are no available connections in the queue.
+ * @param[in] srv The server from whose queue the connections must be obtained
+ * @return The integer that identifies the socket in which the connection has been established
+ */
+int get_connection(Server *srv) {
+    return queue_pop(srv->queue);
+}
+
+/**
+ * @brief Adds a new connection to the queue
+ * @details This function is a wrapper around the #queue_add function. This operation is blocking when there are no
+ * empty slots in the queue.
+ * @param[in] srv The server to whose queue the connection must be added
+ * @param[in] socket The integer that identifies the socket in which the connection has been established
+ */
 void add_connection(Server *srv, int socket) {
     queue_add(srv->queue, socket);
 }

@@ -74,7 +74,6 @@ SERVERCMD processHTTPRequest(int socket, struct _srvutils *utils) {
     }
 
     struct request *request = parseRequest(buffer, MAX_HTTPREQ, prevbuflen);
-    //httpreq_print(stdout, request);
 
     int code = route(socket, request, utils);
 
