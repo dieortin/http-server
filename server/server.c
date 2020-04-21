@@ -239,6 +239,8 @@ STATUS server_start(Server *srv) {
         pthread_create(srv->threads[i], NULL, connectionHandler, param);
     }
 
+    server_log("Server running on http://%s:%i", ip, port);
+
     while (1) {
         int new_socket;
         if ((new_socket = accept(srv->socket_descriptor, (struct sockaddr *) &srv->address,
