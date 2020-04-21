@@ -160,19 +160,11 @@ int respond(int socket, unsigned int code, const char *message, struct httpResHe
     long bytes_sent = 0;
 
     int ret = send_response_header(socket, code, message, headers); // Send the response header
-    if (ret == -1) {
-        err = 1;
-    } else {
-        bytes_sent += ret;
-    }
+    ret == -1 ? (err = 1) : (bytes_sent += ret);
 
     if (body) {
         ret = send_response_body(socket, body, body_len);
-        if (ret == -1) {
-            err = 1;
-        } else {
-            bytes_sent += ret;
-        }
+        ret == -1 ? (err = 1) : (bytes_sent += ret);
     }
 
 #if DEBUG >= 1
