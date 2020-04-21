@@ -12,7 +12,7 @@
 #ifndef PRACTICA1_SERVER_H
 #define PRACTICA1_SERVER_H
 
-#define DEFAULT_MAX_QUEUE 10
+#define DEFAULT_MAX_QUEUE 100
 #define DEFAULT_NTHREADS 2
 
 #include "constants.h"
@@ -32,6 +32,15 @@ typedef enum _SERVERCMD {
 typedef struct _server Server;
 
 /**
+ * @struct _srvutils
+ * @brief This structure stores data and functions that the request processor can use during its execution
+ */
+struct _srvutils {
+    void (*log)(FILE *file, const char *fmt, ...); ///< Logger function from the #Server
+    const char *webroot; ///< String containing the path of the webroot of the #Server
+};
+
+/**
  * @brief Reads the provided configuration file, then initializes the structures required for the #Server
  * and creates the main socket where it will listen according to that configuration.
  * @details This function is the one in charge of providing the #Server structure with most of the data it needs
@@ -45,7 +54,7 @@ typedef struct _server Server;
  * @return An initialized #Server, ready to be started with server_start(), or \a NULL if any error occurs.
  */
 Server *
-server_init(char *config_filename, SERVERCMD (*request_processor)(int socket, void (*logger)(const char *fmt, ...)));
+server_init(char *config_filename, SERVERCMD (*request_processor)(int socket, const struct _srvutils *utils));
 
 /**
  * @brief Frees all the associated memory of the provided #Server

@@ -22,8 +22,6 @@
 #define HDR_CONTENT_TYPE "Content-Type"
 #define HDR_ALLOW "Allow"
 
-#define HEADER_EXTRA_SPACE 3 ///< Space required for ": " and the null termination character in the headers
-
 #define INDEX_PATH "/index.html"
 
 struct request {
@@ -38,18 +36,16 @@ struct httpResHeaders {
     char **headers;
 };
 
-SERVERCMD processHTTPRequest(int socket, void (*log)(const char *fmt, ...));
+SERVERCMD processHTTPRequest(int socket, struct _srvutils *utils);
 
 int respond(int socket, unsigned int code, const char *message, struct httpResHeaders *headers, const char *body,
             long body_len);
 
-int httpreq_print(FILE *fd, struct request *request);
+int resolution_get(int socket, struct request *request, struct _srvutils *utils);
 
-int resolution_get(int socket, struct request *request);
+int resolution_post(int socket, struct request *request, struct _srvutils *utils);
 
-int resolution_post(int socket, struct request *request);
-
-int resolution_options(int socket, struct request *request);
+int resolution_options(int socket, struct request *request, struct _srvutils *utils);
 
 struct httpResHeaders *create_header_struct();
 
@@ -59,7 +55,7 @@ void headers_free(struct httpResHeaders *headers);
 
 int headers_getlen(struct httpResHeaders *headers);
 
-int send_file(int socket, struct httpResHeaders *headers, const char *path);
+int send_file(int socket, struct httpResHeaders *headers, const char *path, struct _srvutils *utils);
 
 STATUS add_last_modified(const char *filePath, struct httpResHeaders *headers);
 

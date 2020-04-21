@@ -22,7 +22,7 @@ STATUS setDefaultHeaders(struct httpResHeaders *headers);
 
 #define CRLF_LEN strlen("\r\n") ///< Length of the string containing the response code (always three digit)
 
-int route(int socket, struct request *request);
+int route(int socket, struct request *request, struct _srvutils *utils);
 
 struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen) {
     if (!buf) return NULL;
@@ -61,14 +61,14 @@ STATUS freeRequest(struct request *request) {
 }
 
 
-SERVERCMD processHTTPRequest(int socket, void (*log)(const char *, ...)) {
+SERVERCMD processHTTPRequest(int socket, struct _srvutils *utils) {
     size_t prevbuflen = 0;
 
     char *buffer = calloc(MAX_HTTPREQ, sizeof(char));
 
     int ret = (int) read(socket, buffer, MAX_HTTPREQ);
     if (ret == -1) { // Error while reading from the socket
-        log("Error while reading from socket %i: %s", socket, strerror(errno));
+        utils->log(stderr, "Error while reading from socket %i: %s", socket, strerror(errno));
         respond(socket, INTERNAL_ERROR, "Internal server error", NULL, NULL, 0);
         return CONTINUE; // TODO: return STOP?
     }
@@ -76,9 +76,9 @@ SERVERCMD processHTTPRequest(int socket, void (*log)(const char *, ...)) {
     struct request *request = parseRequest(buffer, MAX_HTTPREQ, prevbuflen);
     //httpreq_print(stdout, request);
 
-    int code = route(socket, request);
+    int code = route(socket, request, utils);
 
-    log("%s %s %i", request->method, request->path, code);
+    utils->log(stdout, "%s %s %i", request->method, request->path, code);
 
     free(buffer);
     freeRequest(request);
@@ -86,13 +86,13 @@ SERVERCMD processHTTPRequest(int socket, void (*log)(const char *, ...)) {
     return CONTINUE; /// Tell the server to continue accepting requests
 }
 
-int route(int socket, struct request *request) {
+int route(int socket, struct request *request, struct _srvutils *utils) {
     if (strcmp(request->method, GET) == 0) {
-        return resolution_get(socket, request);
+        return resolution_get(socket, request, utils);
     } else if (strcmp(request->method, POST) == 0) {
-        return resolution_post(socket, request);
+        return resolution_post(socket, request, utils);
     } else if (strcmp(request->method, OPTIONS) == 0) {
-        return resolution_options(socket, request);
+        return resolution_options(socket, request, utils);
     } else {
         return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
     }
@@ -118,7 +118,7 @@ int send_response_header(int socket, unsigned int code, const char *message, str
     // Size for the status line and headers
     size_t header_size = status_line_len + headers_getlen(headers) + CRLF_LEN;
 
-    char *buffer = calloc(header_size, sizeof(char)); // Allocate a buffer with the required memory
+    char *buffer = calloc(header_size + 1, sizeof(char)); // Allocate a buffer with the required memory
     if (!buffer) return -1;
 
     strcpy(buffer, status_line); // Copy the status line to the response buffer
@@ -133,7 +133,7 @@ int send_response_header(int socket, unsigned int code, const char *message, str
     // Empty line before response body
     strcat(buffer, "\r\n");
 
-#if DEBUG >= 2
+#if DEBUG >= 3
     printf("Sending response header:\n%s\n", buffer);
 #endif
 
@@ -148,7 +148,7 @@ int send_response_header(int socket, unsigned int code, const char *message, str
 int send_response_body(int socket, const char *body, long body_len) {
     if (!body || body_len <= 0) return -1;
 
-#if DEBUG >= 2
+#if DEBUG >= 3
     printf("Sending response body:\n%s\n", body);
 #endif
     return send(socket, body, body_len + 1, 0);
@@ -189,31 +189,48 @@ int respond(int socket, unsigned int code, const char *message, struct httpResHe
     return (int) code;
 }
 
-int resolution_get(int socket, struct request *request) {
+int resolution_get(int socket, struct request *request, struct _srvutils *utils) {
     //create header structure
     struct httpResHeaders *headers = create_header_struct();
-
     setDefaultHeaders(headers);
 
-    int ret = 0;
+    // Stores the path used for the request, and might be the one required by the user or a different one if the server
+    // decides so
+    const char *used_path = NULL;
 
     if (strcmp(request->path, "/") == 0) { // If the browser gets a request for the server root
-        ret = send_file(socket, headers, INDEX_PATH); // Attempt to serve the index file
+        used_path = INDEX_PATH; // Use the index path
     } else {
-        ret = send_file(socket, headers, request->path);
+        used_path = request->path; // Use the path supplied by the request
     }
 
+    // Calculate the size that the full path will have
+    size_t fullpath_size = strlen(utils->webroot) + strlen(used_path) + 1;
+
+    // Allocate enough space for the entire path and the null terminator
+    char *fullpath = malloc(sizeof(char) * fullpath_size);
+
+    // Concatenate both parts of the path to obtain the full path
+    strcat(fullpath, utils->webroot);
+    strcat(fullpath, used_path);
+
+#if DEBUG >= 2
+    utils->log(stdout, "Full path: %s", fullpath);
+#endif
+
+    int ret = send_file(socket, headers, fullpath, utils); // Attempt to serve the index file
+
+    free(fullpath);
     headers_free(headers);
     return ret;
 }
 
 // TODO: Implement
-int resolution_post(int socket, struct request *request) {
+int resolution_post(int socket, struct request *request, struct _srvutils *utils) {
     return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
 }
 
-// TODO: Implement
-int resolution_options(int socket, struct request *request) {
+int resolution_options(int socket, struct request *request, struct _srvutils *utils) {
     struct httpResHeaders *headers = create_header_struct();
     setDefaultHeaders(headers);
 
@@ -228,9 +245,11 @@ int resolution_options(int socket, struct request *request) {
 STATUS setDefaultHeaders(struct httpResHeaders *headers) {
     if (!headers) return ERROR;
 
+    struct tm tm;
+
     char timeStr[100];
     time_t now = time(0);
-    struct tm tm = *gmtime(&now);
+    gmtime_r(&now, &tm);
     strftime(timeStr, sizeof timeStr, "%a, %d %b %Y %H:%M:%S %Z", &tm);
     //create date header
     set_header(headers, HDR_DATE, timeStr);
@@ -259,28 +278,16 @@ off_t get_file_size(FILE *fd) {
     return s.st_size; // Return the file size
 }
 
-int send_file(int socket, struct httpResHeaders *headers, const char *path) {
+int send_file(int socket, struct httpResHeaders *headers, const char *path, struct _srvutils *utils) {
     if (!headers || !path) return ERROR;
 
-    //char *buffer = NULL;
-    long length;
-    char webpath[300];
-    char cwd[200];
-    memset(webpath, 0, 300 * sizeof(char));
-    memset(cwd, 0, 200 * sizeof(char));
-    getcwd(cwd, 200);
-
-    strcpy(webpath, cwd);
-    strcat(webpath, "/www");
-    strcat(webpath, path);
-
-    if (!is_regular_file(webpath)) { // If it's not a regular file (i.e. is a directory, pipe, link...)
+    if (!is_regular_file(path)) { // If it's not a regular file (i.e. is a directory, pipe, link...)
         respond(socket, NOT_FOUND, "Not found", headers, NULL, 0);
         return NOT_FOUND;
     }
-    FILE *f = fopen(webpath, "r");
+    FILE *f = fopen(path, "r");
     if (f) {
-        length = get_file_size(f);
+        long length = get_file_size(f);
 
         // Copy the entire file to the buffer
         char *buffer = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fileno(f), 0);
@@ -321,7 +328,9 @@ STATUS add_last_modified(const char *filePath, struct httpResHeaders *headers) {
     memset(&b, 0, sizeof(struct stat));
 
     stat(filePath, &b);
-    strftime(t, sizeof t, "%a, %d %b %Y %H:%M:%S %Z", localtime(&b.st_mtime));
+
+    struct tm tm;
+    strftime(t, sizeof t, "%a, %d %b %Y %H:%M:%S %Z", localtime_r(&b.st_mtime, &tm));
     return set_header(headers, HDR_LAST_MODIFIED, t);
 }
 
