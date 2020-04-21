@@ -40,7 +40,8 @@ struct httpResHeaders {
 
 SERVERCMD processHTTPRequest(int socket, void (*log)(const char *fmt, ...));
 
-int respond(int socket, unsigned int code, char *message, struct httpResHeaders *headers, char *body, long body_len);
+int respond(int socket, unsigned int code, const char *message, struct httpResHeaders *headers, const char *body,
+            long body_len);
 
 int httpreq_print(FILE *fd, struct request *request);
 

@@ -16,26 +16,13 @@
 #include <stdlib.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 
 STATUS setDefaultHeaders(struct httpResHeaders *headers);
 
 #define CRLF_LEN strlen("\r\n") ///< Length of the string containing the response code (always three digit)
 
 int route(int socket, struct request *request);
-
-//int parseRequest(const char *buf, int buflen, size_t prevbuflen, struct request *request) {
-//    int p;
-//    const char *method, *path;
-//    size_t method_len, path_len;
-//    p = phr_parse_request(buf, buflen, &method, &method_len, &path, &path_len,
-//                          &request->minor_version, request->headers, &request->num_headers, prevbuflen);
-//    request->method = calloc(method_len + 1, sizeof(char));
-//    request->path = calloc(path_len + 1, sizeof(char));
-//    strncpy(request->method, method, method_len);
-//    strncpy(request->path, path, path_len);
-//
-//    return p;
-//}
 
 struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen) {
     if (!buf) return NULL;
@@ -116,7 +103,7 @@ int route(int socket, struct request *request) {
     }
 }
 
-int respond(int socket, unsigned int code, char *message, struct httpResHeaders *headers, char *body, long body_len) {
+int send_response_header(int socket, unsigned int code, const char *message, struct httpResHeaders *headers) {
     char *status_line = NULL;
     size_t status_line_len = 0;
 
@@ -133,10 +120,10 @@ int respond(int socket, unsigned int code, char *message, struct httpResHeaders 
         sprintf(status_line, "%s %i\r\n", HTTP_VER, code); // Print the status line
     }
 
-    // Size for the status line, headers, body and null terminator
-    size_t response_size = status_line_len + headers_getlen(headers) + CRLF_LEN + body_len + 1;
+    // Size for the status line and headers
+    size_t header_size = status_line_len + headers_getlen(headers) + CRLF_LEN;
 
-    char *buffer = calloc(response_size, sizeof(char)); // Allocate a buffer with the required memory
+    char *buffer = calloc(header_size, sizeof(char)); // Allocate a buffer with the required memory
     if (!buffer) return -1;
 
     strcpy(buffer, status_line); // Copy the status line to the response buffer
@@ -151,46 +138,61 @@ int respond(int socket, unsigned int code, char *message, struct httpResHeaders 
     // Empty line before response body
     strcat(buffer, "\r\n");
 
-    //printf("Length is %li\n", body_len);
+#if DEBUG >= 2
+    printf("Sending response header:\n%s\n", buffer);
+#endif
 
-    if (body)
-        memcpy(buffer + strlen(buffer), body,
-               (size_t) body_len); // Copy the body using memcpy (we're not always working with strings)
-
-    int ret = (int) send(socket, buffer, response_size, 0);
-    if (ret < 0) {
-        perror("Error while sending response");
-    } else {
-        //printf("Sent %i bytes\n", ret);
-    }
-
-    if (DEBUG >= 2) {
-        printf("--------------------\nResponse sent:\n%s\n", buffer);
-    }
-    close(socket);
+    int ret = send(socket, buffer, header_size, 0);
 
     free(buffer);
     free(status_line);
 
-    return 0;
+    return ret;
 }
 
-//int httpreq_print(FILE *fd, struct request *request) {
-//    int i;
-//    if (!fd || !request) return -1;
-//
-//    fprintf(fd,
-//            "httpreq_data:{\n\tmethod='%s' \n\tpath='%s' \n\tminor_version='%d'\n\tnum_headers='%zu'\n}\n",
-//            request->method,
-//            request->path, request->minor_version, request->num_headers);
-//    for (i = 0; i < request->num_headers; ++i) {
-//        fprintf(fd,
-//                "headers:{\n\theader name='%.*s' \n\theader value='%.*s'\n}\n",
-//                (int) request->headers->name_len, request->headers->name,
-//                (int) request->headers->value_len, request->headers->value);
-//    }
-//    return 0;
-//}
+int send_response_body(int socket, const char *body, long body_len) {
+    if (!body || body_len <= 0) return -1;
+
+#if DEBUG >= 2
+    printf("Sending response body:\n%s\n", body);
+#endif
+    return send(socket, body, body_len + 1, 0);
+}
+
+int respond(int socket, unsigned int code, const char *message, struct httpResHeaders *headers, const char *body,
+            long body_len) {
+    short int err = 0;
+    long bytes_sent = 0;
+
+    int ret = send_response_header(socket, code, message, headers); // Send the response header
+    if (ret == -1) {
+        err = 1;
+    } else {
+        bytes_sent += ret;
+    }
+
+    if (body) {
+        ret = send_response_body(socket, body, body_len);
+        if (ret == -1) {
+            err = 1;
+        } else {
+            bytes_sent += ret;
+        }
+    }
+
+#if DEBUG >= 1
+    if (err) {
+        perror("Error while sending response");
+    } else {
+        printf("Sent %li bytes\n", bytes_sent);
+    }
+#endif
+    shutdown(socket, SHUT_WR);
+    shutdown(socket, SHUT_RD);
+    close(socket);
+
+    return (int) code;
+}
 
 int resolution_get(int socket, struct request *request) {
     //create header structure
@@ -242,19 +244,30 @@ STATUS setDefaultHeaders(struct httpResHeaders *headers) {
     return SUCCESS;
 }
 
-int is_directory(const char *path) {
-    if (!path) return -1;
-
-    if (path[strlen(path) - 1] == '/') return 1;
-
-    return 0;
+// https://stackoverflow.com/a/4553076/3024970
+int is_regular_file(const char *path) {
+    struct stat path_stat;
+    stat(path, &path_stat);
+    return S_ISREG(path_stat.st_mode); // NOLINT(hicpp-signed-bitwise)
 }
 
+off_t get_file_size(FILE *fd) {
+    if (!fd) return -1;
+
+    struct stat s;
+    memset(&s, 0, sizeof(struct stat)); // Zero out the structure
+
+    if (fstat(fileno(fd), &s) == -1) { // Obtain the stats for the file
+        return -1; // Error while executing stat
+    }
+
+    return s.st_size; // Return the file size
+}
 
 int send_file(int socket, struct httpResHeaders *headers, const char *path) {
     if (!headers || !path) return ERROR;
 
-    char *buffer = NULL;
+    //char *buffer = NULL;
     long length;
     char webpath[300];
     char cwd[200];
@@ -266,25 +279,16 @@ int send_file(int socket, struct httpResHeaders *headers, const char *path) {
     strcat(webpath, "/www");
     strcat(webpath, path);
 
-    int returnCode;
-
-    // TODO: Check if it's a directory or a file
-    if (is_directory(path)) {
-        respond(socket, FORBIDDEN, "Forbidden", headers, NULL, 0);
-        headers_free(headers);
-        return FORBIDDEN;
+    if (!is_regular_file(webpath)) { // If it's not a regular file (i.e. is a directory, pipe, link...)
+        respond(socket, NOT_FOUND, "Not found", headers, NULL, 0);
+        return NOT_FOUND;
     }
     FILE *f = fopen(webpath, "r");
     if (f) {
-        fseek(f, 0, SEEK_END);
-        length = ftell(f);
-        fseek(f, 0, SEEK_SET);
-        buffer = calloc((size_t) (length + 1), sizeof(char));
+        length = get_file_size(f);
 
-        fread(buffer, sizeof(char), (size_t) length, f);    //se introduce en el buffer el archivo
-        if (ferror(f)) {
-            printf("Read error\n"); // TODO: Remove
-        }
+        // Copy the entire file to the buffer
+        char *buffer = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fileno(f), 0);
 
         //crear headers de archivo
         add_last_modified(path, headers);
@@ -292,21 +296,18 @@ int send_file(int socket, struct httpResHeaders *headers, const char *path) {
         add_content_length(length, headers);
 
         respond(socket, OK, "OK", headers, buffer, length);
-        free(buffer);
+//        free(buffer);
+        munmap(buffer, length);
 
         fclose(f);
-        returnCode = OK;
+        return OK;
     } else {
         if (errno == ENOENT) {
-            respond(socket, NOT_FOUND, "Not found", NULL, NULL, 0);
-            returnCode = NOT_FOUND;
+            return respond(socket, NOT_FOUND, "Not found", NULL, NULL, 0);
         } else {
-            respond(socket, INTERNAL_ERROR, "Not found", NULL, NULL, 0);
-            returnCode = INTERNAL_ERROR;
+            return respond(socket, INTERNAL_ERROR, "Not found", NULL, NULL, 0);
         }
     }
-
-    return returnCode;
 }
 
 /*from https://github.com/Menghongli/C-Web-Server/blob/master/get-mime-type.c*/
