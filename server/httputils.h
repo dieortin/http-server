@@ -45,7 +45,7 @@ int resolution_get(int socket, struct request *request, struct _srvutils *utils)
 
 int resolution_post(int socket, struct request *request, struct _srvutils *utils);
 
-int resolution_options(int socket, struct request *request, struct _srvutils *utils);
+int resolution_options(int socket);
 
 struct httpResHeaders *create_header_struct();
 

@@ -92,7 +92,7 @@ int route(int socket, struct request *request, struct _srvutils *utils) {
     } else if (strcmp(request->method, POST) == 0) {
         return resolution_post(socket, request, utils);
     } else if (strcmp(request->method, OPTIONS) == 0) {
-        return resolution_options(socket, request, utils);
+        return resolution_options(socket);
     } else {
         return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
     }
@@ -156,15 +156,21 @@ int send_response_body(int socket, const char *body, long body_len) {
 
 int respond(int socket, unsigned int code, const char *message, struct httpResHeaders *headers, const char *body,
             long body_len) {
+#if DEBUG >= 1
     short int err = 0;
     long bytes_sent = 0;
+#endif
 
     int ret = send_response_header(socket, code, message, headers); // Send the response header
+#if DEBUG >= 1
     ret == -1 ? (err = 1) : (bytes_sent += ret);
+#endif
 
     if (body) {
         ret = send_response_body(socket, body, body_len);
+#if DEBUG >= 1
         ret == -1 ? (err = 1) : (bytes_sent += ret);
+#endif
     }
 
 #if DEBUG >= 1
@@ -222,7 +228,7 @@ int resolution_post(int socket, struct request *request, struct _srvutils *utils
     return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
 }
 
-int resolution_options(int socket, struct request *request, struct _srvutils *utils) {
+int resolution_options(int socket) {
     struct httpResHeaders *headers = create_header_struct();
     setDefaultHeaders(headers);
 
@@ -284,14 +290,14 @@ int send_file(int socket, struct httpResHeaders *headers, const char *path, stru
         // Copy the entire file to the buffer
         char *buffer = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fileno(f), 0);
 
-        //crear headers de archivo
+        // Add the file headers
         add_last_modified(path, headers);
         add_content_type(path, headers);
         add_content_length(length, headers);
 
         respond(socket, OK, "OK", headers, buffer, length);
-//        free(buffer);
-        munmap(buffer, length);
+
+        munmap(buffer, length); // Free the mapping
 
         fclose(f);
         return OK;
