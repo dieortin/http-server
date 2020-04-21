@@ -26,13 +26,25 @@
 
 /**
  * @brief Prints the passed parameters into the server log
- * @param format Format string to be printed
- * @param ... Parameters to be interpolated into the string
+ * @param[in] format Format string to be printed
+ * @param[in] ... Parameters to be interpolated into the string
  */
 void server_log(const char *format, ...);
 
+/**
+ * @brief Adds an accepted connection to the connection queue
+ * @param[in] srv The server to which the connection must be added
+ * @param[in] socket The socket of the accepted connection
+ */
 void add_connection(Server *srv, int socket);
 
+/**
+ * @brief Obtains a connection from the accepted connection queue
+ * @details Blocks execution until a new connection is available in the accepted connection queue, then extracts it
+ * from the queue and resumes execution
+ * @param[in] srv The server from which the connection must be extracted
+ * @return The socket of the accepted connection
+ */
 int get_connection(Server *srv);
 
 void *connectionHandler(void *p);
@@ -69,9 +81,13 @@ struct _server {
     ///< can use to produce logs.
 };
 
+/**
+ * @struct handler_param
+ * @brief Used to pass parameters to the request processing threads
+ */
 struct handler_param {
-    Server *srv;
-    int thread_id;
+    Server *srv; ///< Reference to the server to which the processing thread belongs
+    int thread_id; ///< Integer that uniquely identifies the thread among all the threads from the same server
 };
 
 Server *

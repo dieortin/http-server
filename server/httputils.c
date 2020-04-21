@@ -73,11 +73,6 @@ SERVERCMD processHTTPRequest(int socket, void (*log)(const char *, ...)) {
         return CONTINUE; // TODO: return STOP?
     }
 
-
-//    printf("-------BEGIN-----------\n%s\n-------END------\n", buffer);
-//
-//    printf("------END----------------\n");
-
     struct request *request = parseRequest(buffer, MAX_HTTPREQ, prevbuflen);
     //httpreq_print(stdout, request);
 

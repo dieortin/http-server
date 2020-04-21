@@ -59,7 +59,7 @@ STATUS server_free(Server *srv);
  * @brief Makes the #Server start listening and accepting connections with the function stored
  * in #_server.request_processor.
  * @pre @p srv must point to an initialized #Server
- * @param srv The #Server to start.
+ * @param[in] srv The #Server to start.
  * @return \ref STATUS.ERROR if any error occurs, \ref STATUS.SUCCESS otherwise
  */
 STATUS server_start(Server *srv);
