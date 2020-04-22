@@ -31,45 +31,54 @@
 
 #define INDEX_PATH "/index.html"
 
+/**
+ * @struct request
+ * @brief Stores all the data related to an HTTP request
+ */
 struct request {
-    const char *method, *path;
-    int minor_version;
-    struct phr_header headers[100];
-    size_t num_headers;
+    const char *method; ///< HTTP Method of the request
+    const char *path; ///< Path of the request
+    int minor_version; ///< HTTP version of the request
+    struct phr_header headers[100]; ///< Structure containing the request headers
+    size_t num_headers; ///< Number of headers in the request
 };
 
-struct httpResHeaders {
-    int num_headers;
-    char **headers;
+/**
+ * @struct httpres_headers
+ * @brief Stores the headers that must be sent with an HTTP response
+ */
+struct httpres_headers {
+    int num_headers; ///< Number of headers in the structure
+    char **headers; ///< Array of strings containing the full headers
 };
 
 
-int respond(int socket, unsigned int code, const char *message, struct httpResHeaders *headers, const char *body,
+int respond(int socket, unsigned int code, const char *message, struct httpres_headers *headers, const char *body,
             long body_len);
 
 struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen);
 
 STATUS freeRequest(struct request *request);
 
-struct httpResHeaders *create_header_struct();
+struct httpres_headers *create_header_struct();
 
-STATUS set_header(struct httpResHeaders *headers, const char *name, const char *value);
+STATUS set_header(struct httpres_headers *headers, const char *name, const char *value);
 
-void headers_free(struct httpResHeaders *headers);
+void headers_free(struct httpres_headers *headers);
 
-int headers_getlen(struct httpResHeaders *headers);
+int headers_getlen(struct httpres_headers *headers);
 
-int send_file(int socket, struct httpResHeaders *headers, const char *path, struct _srvutils *utils);
+int send_file(int socket, struct httpres_headers *headers, const char *path, struct _srvutils *utils);
 
-STATUS add_last_modified(const char *filePath, struct httpResHeaders *headers);
+STATUS add_last_modified(const char *filePath, struct httpres_headers *headers);
 
 const char *get_mime_type(const char *name);
 
-STATUS add_content_type(const char *filePath, struct httpResHeaders *headers);
+STATUS add_content_type(const char *filePath, struct httpres_headers *headers);
 
-STATUS add_content_length(long length, struct httpResHeaders *headers);
+STATUS add_content_length(long length, struct httpres_headers *headers);
 
-STATUS setDefaultHeaders(struct httpResHeaders *headers);
+STATUS setDefaultHeaders(struct httpres_headers *headers);
 
 typedef enum _HTTP_SUCCESS {
     OK = 200,

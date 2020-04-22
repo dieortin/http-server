@@ -57,7 +57,7 @@ STATUS freeRequest(struct request *request) {
     return SUCCESS;
 }
 
-int send_response_header(int socket, unsigned int code, const char *message, struct httpResHeaders *headers) {
+int send_response_header(int socket, unsigned int code, const char *message, struct httpres_headers *headers) {
     char *status_line = NULL;
     size_t status_line_len = 0;
 
@@ -113,7 +113,7 @@ int send_response_body(int socket, const char *body, long body_len) {
     return send(socket, body, body_len + 1, 0);
 }
 
-int respond(int socket, unsigned int code, const char *message, struct httpResHeaders *headers, const char *body,
+int respond(int socket, unsigned int code, const char *message, struct httpres_headers *headers, const char *body,
             long body_len) {
 #if DEBUG >= 1
     short int err = 0;
@@ -146,7 +146,7 @@ int respond(int socket, unsigned int code, const char *message, struct httpResHe
     return (int) code;
 }
 
-STATUS setDefaultHeaders(struct httpResHeaders *headers) {
+STATUS setDefaultHeaders(struct httpres_headers *headers) {
     if (!headers) return ERROR;
 
     struct tm tm;
@@ -182,7 +182,7 @@ off_t get_file_size(FILE *fd) {
     return s.st_size; // Return the file size
 }
 
-int send_file(int socket, struct httpResHeaders *headers, const char *path, struct _srvutils *utils) {
+int send_file(int socket, struct httpres_headers *headers, const char *path, struct _srvutils *utils) {
     if (!headers || !path) return ERROR;
 
     if (!is_regular_file(path)) { // If it's not a regular file (i.e. is a directory, pipe, link...)
@@ -217,7 +217,7 @@ int send_file(int socket, struct httpResHeaders *headers, const char *path, stru
 }
 
 /*from https://github.com/Menghongli/C-Web-Server/blob/master/get-mime-type.c*/
-STATUS add_content_type(const char *filePath, struct httpResHeaders *headers) {
+STATUS add_content_type(const char *filePath, struct httpres_headers *headers) {
     const char *content_name = NULL;
     content_name = get_mime_type(filePath);
 
@@ -226,7 +226,7 @@ STATUS add_content_type(const char *filePath, struct httpResHeaders *headers) {
     return set_header(headers, HDR_CONTENT_TYPE, content_name);
 }
 
-STATUS add_last_modified(const char *filePath, struct httpResHeaders *headers) {
+STATUS add_last_modified(const char *filePath, struct httpres_headers *headers) {
     char t[100] = "";
     struct stat b;
     memset(&b, 0, sizeof(struct stat));
@@ -239,7 +239,7 @@ STATUS add_last_modified(const char *filePath, struct httpResHeaders *headers) {
 }
 
 
-STATUS add_content_length(long length, struct httpResHeaders *headers) {
+STATUS add_content_length(long length, struct httpres_headers *headers) {
     char len_str[10];
     sprintf(len_str, "%li", length);
     return set_header(headers, HDR_CONTENT_LENGTH, len_str);
@@ -256,14 +256,14 @@ const char *get_mime_type(const char *name) {
     return mime_get_association(ext);
 }
 
-struct httpResHeaders *create_header_struct() {
-    struct httpResHeaders *new = malloc(sizeof(struct httpResHeaders));
+struct httpres_headers *create_header_struct() {
+    struct httpres_headers *new = malloc(sizeof(struct httpres_headers));
     new->headers = NULL;
     new->num_headers = 0;
     return new;
 }
 
-STATUS set_header(struct httpResHeaders *headers, const char *name, const char *value) {
+STATUS set_header(struct httpres_headers *headers, const char *name, const char *value) {
     if (!headers || !name || !value) return ERROR;
 
     if (headers->num_headers == 0) { // If the array didn't exist, create it
@@ -285,7 +285,7 @@ STATUS set_header(struct httpResHeaders *headers, const char *name, const char *
     return SUCCESS;
 }
 
-void headers_free(struct httpResHeaders *headers) {
+void headers_free(struct httpres_headers *headers) {
     if (!headers) return;
 
     for (int i = 0; i < headers->num_headers; i++) {
@@ -296,7 +296,7 @@ void headers_free(struct httpResHeaders *headers) {
     free(headers);
 }
 
-int headers_getlen(struct httpResHeaders *headers) {
+int headers_getlen(struct httpres_headers *headers) {
     if (!headers) return 0;
     int counter = 0;
     for (int i = 0; i < headers->num_headers; i++) {

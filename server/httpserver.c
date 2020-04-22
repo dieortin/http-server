@@ -65,7 +65,7 @@ int route(int socket, struct request *request, struct _srvutils *utils) {
 
 int resolution_get(int socket, struct request *request, struct _srvutils *utils) {
     //create header structure
-    struct httpResHeaders *headers = create_header_struct();
+    struct httpres_headers *headers = create_header_struct();
     setDefaultHeaders(headers);
 
     // Stores the path used for the request, and might be the one required by the user or a different one if the server
@@ -105,7 +105,7 @@ int resolution_post(int socket, struct request *request, struct _srvutils *utils
 }
 
 int resolution_options(int socket) {
-    struct httpResHeaders *headers = create_header_struct();
+    struct httpres_headers *headers = create_header_struct();
     setDefaultHeaders(headers);
 
     set_header(headers, HDR_ALLOW, ALLOWED_OPTIONS);
