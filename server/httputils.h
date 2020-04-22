@@ -1,3 +1,10 @@
+/**
+ * @file httputils.h
+ * @brief Module containing functions and data types useful for the operation of an HTTP server.
+ * @details It offers methods for parsing, processing and responding to HTTP requests, with full header support.
+ * @author Diego Ortín Fernández & Mario Lopez
+ * @date February 2020
+ */
 
 #ifndef PRACTICA1_HTTPUTILS_H
 #define PRACTICA1_HTTPUTILS_H
@@ -36,16 +43,13 @@ struct httpResHeaders {
     char **headers;
 };
 
-SERVERCMD processHTTPRequest(int socket, struct _srvutils *utils);
 
 int respond(int socket, unsigned int code, const char *message, struct httpResHeaders *headers, const char *body,
             long body_len);
 
-int resolution_get(int socket, struct request *request, struct _srvutils *utils);
+struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen);
 
-int resolution_post(int socket, struct request *request, struct _srvutils *utils);
-
-int resolution_options(int socket);
+STATUS freeRequest(struct request *request);
 
 struct httpResHeaders *create_header_struct();
 
@@ -64,6 +68,8 @@ const char *get_mime_type(const char *name);
 STATUS add_content_type(const char *filePath, struct httpResHeaders *headers);
 
 STATUS add_content_length(long length, struct httpResHeaders *headers);
+
+STATUS setDefaultHeaders(struct httpResHeaders *headers);
 
 typedef enum _HTTP_SUCCESS {
     OK = 200,

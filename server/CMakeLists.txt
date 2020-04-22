@@ -18,7 +18,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 add_executable(practica1 main.c httputils.c httputils.h readconfig.c readconfig.h
         constants.h picohttpparser.c picohttpparser.h server.c server.h colorcodes.h
-        uthash.h queue.c queue.h mimetable.c mimetable.h)
+        uthash.h queue.c queue.h mimetable.c mimetable.h httpserver.c httpserver.h)
 target_link_libraries(practica1 ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(queue_test queue.c queue.h test/queue_test.c)

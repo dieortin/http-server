@@ -16,6 +16,7 @@
 #define DEFAULT_NTHREADS 2
 
 #include "constants.h"
+#include <stdio.h>
 
 /**
  * This enumeration contains the messages a request processor function can return to the #Server. They allow
