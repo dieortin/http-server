@@ -23,6 +23,10 @@
 
 #define TAB_DELIM "\t"
 
+/**
+ * @struct mime_association
+ * @brief Contains an association between an extension and a MIME type
+ */
 struct mime_association {
     char extension[MAX_EXTENSION]; ///< File extension
     char type[MAX_MIMETYPE]; ///< Associated MIME type
