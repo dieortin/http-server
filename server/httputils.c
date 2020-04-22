@@ -165,8 +165,16 @@ STATUS setDefaultHeaders(struct httpres_headers *headers) {
 // https://stackoverflow.com/a/4553076/3024970
 int is_regular_file(const char *path) {
     struct stat path_stat;
+    memset(&path_stat, 0, sizeof(struct stat));
     stat(path, &path_stat);
     return S_ISREG(path_stat.st_mode); // NOLINT(hicpp-signed-bitwise)
+}
+
+int is_directory(const char *path) {
+    struct stat path_stat;
+    memset(&path_stat, 0, sizeof(struct stat));
+    stat(path, &path_stat);
+    return S_ISDIR(path_stat.st_mode); // NOLINT(hicpp-signed-bitwise)
 }
 
 off_t get_file_size(FILE *fd) {

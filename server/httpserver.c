@@ -68,29 +68,25 @@ int resolution_get(int socket, struct request *request, struct _srvutils *utils)
     struct httpres_headers *headers = create_header_struct();
     setDefaultHeaders(headers);
 
-    // Stores the path used for the request, and might be the one required by the user or a different one if the server
-    // decides so
-    const char *used_path = NULL;
-
-    if (strcmp(request->path, "/") == 0) { // If the browser gets a request for the server root
-        used_path = INDEX_PATH; // Use the index path
-    } else {
-        used_path = request->path; // Use the path supplied by the request
-    }
-
     // Calculate the size that the full path will have
-    size_t fullpath_size = strlen(utils->webroot) + strlen(used_path) + 1;
+    size_t fullpath_size = strlen(utils->webroot) + strlen(request->path) + 1;
 
     // Allocate enough space for the entire path and the null terminator
-    char *fullpath = malloc(sizeof(char) * fullpath_size);
+    char *fullpath = calloc(sizeof(char), fullpath_size);
 
     // Concatenate both parts of the path to obtain the full path
     strcat(fullpath, utils->webroot);
-    strcat(fullpath, used_path);
+    strcat(fullpath, request->path);
 
 #if DEBUG >= 2
     utils->log(stdout, "Full path: %s", fullpath);
 #endif
+
+    if (is_directory(fullpath)) { // If it's a directory, attempt to serve an index.html
+        size_t newfullpath_size = fullpath_size + strlen(INDEX_PATH);
+        fullpath = realloc(fullpath, newfullpath_size); // Reallocate with size for the index
+        strncat(fullpath, INDEX_PATH, newfullpath_size); // Concatenate the index.html path at the end
+    }
 
     int ret = send_file(socket, headers, fullpath, utils); // Attempt to serve the index file
 

@@ -295,7 +295,7 @@ char *get_full_webroot(const char *webroot) {
     size_t webroot_full_size = strlen(cwd) + strlen(webroot) + 1;
 
     // Allocate enough memory for the full webroot
-    char *full_webroot = malloc(sizeof(char) * webroot_full_size);
+    char *full_webroot = calloc(sizeof(char), webroot_full_size);
 
     // Concatenate the current working directory and the webroot to form the full webroot
     strcat(full_webroot, cwd);

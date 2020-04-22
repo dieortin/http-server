@@ -68,6 +68,10 @@ void headers_free(struct httpres_headers *headers);
 
 int headers_getlen(struct httpres_headers *headers);
 
+int is_regular_file(const char *path);
+
+int is_directory(const char *path);
+
 int send_file(int socket, struct httpres_headers *headers, const char *path, struct _srvutils *utils);
 
 STATUS add_last_modified(const char *filePath, struct httpres_headers *headers);
