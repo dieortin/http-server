@@ -7,15 +7,15 @@
 
 #ifndef PRACTICA1_CONSTANTS_H
 
-#define DEBUG 1 ///< Sets the level of debugging logs. A value of 0 disables them.
+#define DEBUG 0 ///< Sets the level of debugging logs. A value of 0 disables them.
 
 #define CONFIG_PATH "/server/server.cfg"    ///< Path of the folder where the configuration file is located
 ///< relative to the main server directory
 
 #define MAX_CONFIG_STR 512 ///< Maximum size of a configuration parameter string
 
-#define MAX_BUFFER 1024
-#define MAX_LINE 100
+#define MAX_BUFFER 1024 ///< Default size for temporary buffers
+#define MAX_LINE 100 ///< Maximum length of a line in the configuration file
 
 /**
  * Represents outcomes of the execution of a function
