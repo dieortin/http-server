@@ -18,6 +18,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <assert.h>
 
 #define CRLF_LEN strlen("\r\n") ///< Length of the string containing the response code (always three digit)
 
@@ -36,13 +37,51 @@ const char *get_querystring(const char *path, size_t path_len) {
     return qspos;
 }
 
-struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen) {
-    if (!buf) return NULL;
+parse_result
+readParse(int socket, char *buf, size_t buf_size, int *minor_version, struct phr_header headers[], size_t *num_headers,
+          size_t *method_len, size_t *path_len, const char **method, const char **path) {
+    if (socket < 0 || !buf || buf_size <= 0 || num_headers < 0) {
+        return PARSE_ERROR;
+    }
 
-    struct request *req = calloc(1, sizeof(struct request));
-    if (!req) return NULL;
+    size_t buflen = 0, prevbuflen = 0;
+    int pret;
+    ssize_t rret;
+
+    while (1) {
+        while ((rret = read(socket, buf + buflen, buf_size - buflen)) == -1 && errno == EINTR);
+
+        if (rret <= 0) { // IO error
+            return PARSE_IOERROR;
+        }
+        prevbuflen = buflen;
+        buflen += rret;
+
+        // Parse the request
+        pret = phr_parse_request(buf, buflen, method, method_len, path, path_len, minor_version, headers, num_headers,
+                                 prevbuflen);
+
+        if (pret > 0) break;
+        else if (pret == -1) return PARSE_ERROR;
+        assert(pret == -2);
+        if (buflen == sizeof(buf)) return PARSE_REQTOOLONG;
+    }
+
+    return PARSE_OK;
+}
+
+parse_result parseRequest(int socket, struct request **request) {
+    char buf[MAX_HTTPREQ]; // Buffer to hold the request text
+    memset(buf, 0, MAX_HTTPREQ); // Zero out the buffer to prevent garbage
+
+    struct request *newreq = calloc(1, sizeof(struct request));
+    if (!newreq) return PARSE_INTERNALERR; // If allocation failed return internal error
+
     // Zero out the structure
-    memset(req, 0, sizeof(struct request));
+    memset(newreq, 0, sizeof(struct request));
+
+    // picohttpparser requires the number of headers to be set to the maximum one before parsing
+    newreq->num_headers = sizeof(newreq->headers) / sizeof(newreq->headers[0]);
 
 
     // Temporal variables to store the method and path positions before copying them to the new structure
@@ -50,12 +89,11 @@ struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen) {
     size_t tmp_method_len, tmp_fullpath_len, path_len, qs_len;
 
 
-    int pret = phr_parse_request(buf, (size_t) buflen, &tmp_method, &tmp_method_len, &tmp_fullpath, &tmp_fullpath_len,
-                                 &req->minor_version,
-                                 req->headers, &req->num_headers, prevbuflen);
-    if (pret == -1) { // If parsing failed
-        freeRequest(req); // Free the memory associated with the request
-        return NULL;
+    parse_result pret = readParse(socket, buf, sizeof(buf) / sizeof(buf[0]), &newreq->minor_version, newreq->headers,
+                                  &newreq->num_headers, &tmp_method_len, &tmp_fullpath_len, &tmp_method, &tmp_fullpath);
+    if (pret != PARSE_OK) { // If parsing failed
+        freeRequest(newreq); // Free the memory associated with the request
+        return pret; // Return the error code
     }
 
     // Obtain the location of the querystring, and calculate the length of path and querystring
@@ -66,23 +104,28 @@ struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen) {
         // The length of the querystring is the total one minus that of the path
         qs_len = tmp_fullpath_len - path_len;
 
-        req->querystring = calloc(qs_len + 1, sizeof(char)); // Allocate memory in the struct for the querystring
-        strncpy((char *) req->querystring, tmp_querystring, qs_len); // Copy the querystring to the structure
+        newreq->querystring = calloc(qs_len + 1, sizeof(char)); // Allocate memory in the struct for the querystring
+        if (!newreq->querystring) return PARSE_INTERNALERR;
+        strncpy((char *) newreq->querystring, tmp_querystring, qs_len); // Copy the querystring to the structure
     } else {
         path_len = tmp_fullpath_len; // There's no querystring, so the length of the path is that of the full path
-        req->querystring = NULL; // Initialize the querystring field of the structure to NULL
+        newreq->querystring = NULL; // Initialize the querystring field of the structure to NULL
     }
 
 
     // Allocate memory in the structure for method and path
-    req->method = calloc(tmp_method_len + 1, sizeof(char));
-    req->path = calloc(path_len + 1, sizeof(char));
+    newreq->method = calloc(tmp_method_len + 1, sizeof(char));
+    if (!newreq->method) return PARSE_INTERNALERR;
+    newreq->path = calloc(path_len + 1, sizeof(char));
+    if (!newreq->path) return PARSE_INTERNALERR;
 
     // Copy method and path to the structure
-    strncpy((char *) req->method, tmp_method, tmp_method_len);
-    strncpy((char *) req->path, tmp_fullpath, path_len);
+    strncpy((char *) newreq->method, tmp_method, tmp_method_len);
+    strncpy((char *) newreq->path, tmp_fullpath, path_len);
 
-    return req;
+    *request = newreq;
+
+    return PARSE_OK;
 }
 
 STATUS freeRequest(struct request *request) {

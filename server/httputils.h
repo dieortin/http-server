@@ -16,6 +16,7 @@
 #define HTTP_VER "HTTP/1.1"
 
 #define MAX_HTTPREQ (1024 * 8) ///< Maximum size of an HTTP request in any browser (Firefox in this case)
+#define MAX_HEADERS 100
 
 #define GET "GET"
 #define POST "POST"
@@ -31,6 +32,14 @@
 
 #define INDEX_PATH "/index.html"
 
+typedef enum _parse_result {
+    PARSE_OK,
+    PARSE_ERROR,
+    PARSE_REQTOOLONG,
+    PARSE_IOERROR,
+    PARSE_INTERNALERR
+} parse_result;
+
 /**
  * @struct request
  * @brief Stores all the data related to an HTTP request
@@ -40,7 +49,7 @@ struct request {
     const char *path; ///< Path of the request
     const char *querystring; ///< Querystring part of the path
     int minor_version; ///< HTTP version of the request
-    struct phr_header headers[100]; ///< Structure containing the request headers
+    struct phr_header headers[MAX_HEADERS]; ///< Structure containing the request headers
     size_t num_headers; ///< Number of headers in the request
 };
 
@@ -57,7 +66,7 @@ struct httpres_headers {
 int respond(int socket, unsigned int code, const char *message, struct httpres_headers *headers, const char *body,
             unsigned long body_len);
 
-struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen);
+parse_result parseRequest(int socket, struct request **request);
 
 STATUS freeRequest(struct request *request);
 

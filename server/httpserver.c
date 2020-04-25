@@ -12,10 +12,10 @@
  */
 
 #include <stdio.h>
-#include <zconf.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <glob.h>
 
 #include "httpserver.h"
 
@@ -38,31 +38,37 @@ int resolution_options(int socket);
 int executable_type(const char *path);
 
 SERVERCMD processHTTPRequest(int socket, struct _srvutils *utils) {
-    size_t prevbuflen = 0;
+    int routecode;
 
-    char *buffer = calloc(MAX_HTTPREQ, sizeof(char));
+    struct request *request = NULL;
+    parse_result pres = parseRequest(socket, &request);
+    switch (pres) {
+        case PARSE_OK:
+            routecode = route(socket, request, utils);
 
-    int ret = (int) read(socket, buffer, MAX_HTTPREQ);
-    if (ret == -1) { // Error while reading from the socket
-        utils->log(stderr, "Error while reading from socket %i: %s", socket, strerror(errno));
-        respond(socket, INTERNAL_ERROR, "Internal server error", NULL, NULL, 0);
-        return CONTINUE; // TODO: return STOP?
+            utils->log(stdout, "%s %s %i", request->method, request->path, routecode);
+            freeRequest(request);
+
+            return CONTINUE; /// Tell the server to continue accepting requests
+        case PARSE_ERROR:
+            respond(socket, BAD_REQUEST, "Bad request", NULL, NULL, 0);
+            utils->log(stdout, "%s %i", "Bad request", BAD_REQUEST);
+            return CONTINUE;
+        case PARSE_REQTOOLONG:
+            respond(socket, BAD_REQUEST, "Request too long", NULL, NULL, 0);
+            utils->log(stdout, "%s %i", "Request too long", BAD_REQUEST);
+            return CONTINUE;
+        case PARSE_IOERROR:
+            utils->log(stderr, "Error while reading from socket %i: %s", socket, strerror(errno));
+            respond(socket, INTERNAL_ERROR, "Internal server error", NULL, NULL, 0);
+            utils->log(stdout, "%s %i", "Internal error", INTERNAL_ERROR);
+            return CONTINUE; // TODO: stop?
+        default:
+            utils->log(stderr, "Error while parsing request");
+            respond(socket, INTERNAL_ERROR, "Internal server error", NULL, NULL, 0);
+            utils->log(stdout, "%s %i", "Internal error", INTERNAL_ERROR);
+            return CONTINUE; // TODO: stop?
     }
-
-    struct request *request = parseRequest(buffer, MAX_HTTPREQ, prevbuflen);
-    if (!request) { // If parsing failed
-        respond(socket, BAD_REQUEST, "Bad request", NULL, NULL, 0);
-        return CONTINUE;
-    }
-
-    int code = route(socket, request, utils);
-
-    utils->log(stdout, "%s %s %i", request->method, request->path, code);
-
-    free(buffer);
-    freeRequest(request);
-
-    return CONTINUE; /// Tell the server to continue accepting requests
 }
 
 int route(int socket, struct request *request, struct _srvutils *utils) {
