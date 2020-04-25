@@ -75,6 +75,10 @@ int is_directory(const char *path);
 
 int send_file(int socket, struct httpres_headers *headers, const char *path, struct _srvutils *utils);
 
+int
+run_executable(int socket, struct httpres_headers *headers, const char *querystring, struct _srvutils *utils,
+               const char *exec_cmd, const char *path);
+
 STATUS add_last_modified(const char *filePath, struct httpres_headers *headers);
 
 const char *get_mime_type(const char *name);

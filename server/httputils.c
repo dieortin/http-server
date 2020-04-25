@@ -21,15 +21,6 @@
 
 #define CRLF_LEN strlen("\r\n") ///< Length of the string containing the response code (always three digit)
 
-#define PY_CMD "python"
-#define PHP_CMD "php"
-
-enum EXECUTABLE {
-    NON_EXECUTABLE,
-    PYTHON,
-    PHP
-};
-
 /**
  * @brief Returns a pointer to the querystring part of a path string
  * @param[in] path The complete path (including the querystring)
@@ -233,58 +224,38 @@ off_t get_file_size(FILE *fd) {
     return s.st_size; // Return the file size
 }
 
-int executable_type(const char *path) {
-    if (!path) return -1;
-
-    char *ext = strrchr(path, '.'); // Find the extension
-    if (!ext) return -1; // If there's no extension
-    ext++; // skip the '.'
-
-    // TODO: Move away from hardcoded extensions
-    // Return the executable type, or -1 if it's not an executable file
-    if (strcmp(ext, "py") == 0) {
-        return PYTHON;
-    } else if (strcmp(ext, "php") == 0) {
-        return PHP;
-    } else {
-        return NON_EXECUTABLE;
-    }
-
-}
-
-unsigned long
-run_executable(const char *path, char *buf, size_t buf_size, enum EXECUTABLE type, struct _srvutils *utils) {
+int run_executable(int socket, struct httpres_headers *headers, const char *querystring, struct _srvutils *utils,
+                   const char *exec_cmd, const char *path) {
     if (!path) return 0;
 
-    char *exec_cmd = NULL; // Pointer to the specific interpreter to execute
-
-    switch (type) { // Change the command to execute depending on the file type
-        case PYTHON:
-            exec_cmd = PY_CMD;
-            break;
-        case PHP:
-            exec_cmd = PHP_CMD;
-            break;
-        default:
-            return 0;
+    char *command = NULL;
+    if (querystring) { // If a querystring has been provided
+        // Calculate required size for the command string and its null terminator
+        size_t command_size = snprintf(NULL, 0, "%s %s %s", exec_cmd, path, querystring) + 1;
+        command = malloc(sizeof(char) * command_size); // Allocate space for the command string
+        snprintf(command, command_size, "%s %s %s", exec_cmd, path, querystring); // Print the command string
+    } else { // If no querystring has been provided
+        // Calculate required size for the command string and its null terminator
+        size_t command_size = snprintf(NULL, 0, "%s %s", exec_cmd, path) + 1;
+        command = malloc(sizeof(char) * command_size); // Allocate space for the command string
+        snprintf(command, command_size, "%s %s", exec_cmd, path); // Print the command string
     }
-    // Calculate required size for the command string and its null terminator
-    size_t command_size = snprintf(NULL, 0, "%s %s", exec_cmd, path) + 1;
-    char *command = malloc(sizeof(char) * command_size); // Allocate space for the command string
-    snprintf(command, command_size, "%s %s", exec_cmd, path); // Print the command string
 
     FILE *fd = popen(command, "r");
     free(command);
     if (!fd) return 0;
 
-    unsigned long n_read = fread(buf, sizeof(char), buf_size, fd); // Read from the pipe
+    char result[MAX_BUFFER + 1]; // Buffer to hold the result of the execution
+
+    unsigned long n_read = fread(result, sizeof(char), sizeof(result) / sizeof(result[0]), fd); // Read from the pipe
+    int cmd_ret = pclose(fd);
+
     if (n_read > 0) { // If reading from the pipe goes well
-        utils->log(stdout, "Command output: \n%s", buf);
+        utils->log(stdout, "Command output: \n%s", result);
+        return respond(socket, OK, "OK", headers, result, n_read);
+    } else {
+        return respond(socket, INTERNAL_ERROR, "Execution error", headers, NULL, 0);
     }
-
-    int ret = pclose(fd);
-
-    return n_read;
 }
 
 int send_file(int socket, struct httpres_headers *headers, const char *path, struct _srvutils *utils) {
@@ -294,21 +265,6 @@ int send_file(int socket, struct httpres_headers *headers, const char *path, str
         respond(socket, NOT_FOUND, "Not found", headers, NULL, 0);
         return NOT_FOUND;
     }
-
-    enum EXECUTABLE type = executable_type(path);
-
-    if (type != NON_EXECUTABLE) {
-        char result[MAX_BUFFER];
-        memset(result, 0, MAX_BUFFER);
-        unsigned long result_len;
-
-        if ((result_len = run_executable(path, result, MAX_BUFFER, type, utils)) != 0) {
-            respond(socket, OK, "OK", headers, result, result_len);
-        } else {
-            respond(socket, INTERNAL_ERROR, "Execution error", headers, NULL, 0);
-        }
-    }
-
 
     FILE *f = fopen(path, "r");
     if (f) {

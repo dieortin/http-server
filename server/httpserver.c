@@ -19,6 +19,14 @@
 
 #include "httpserver.h"
 
+
+enum EXECUTABLE {
+    PYTHON,
+    PHP
+};
+
+char *executable_cmd[] = {"python", "php"};
+
 int route(int socket, struct request *request, struct _srvutils *utils);
 
 int resolution_get(int socket, struct request *request, struct _srvutils *utils);
@@ -26,6 +34,8 @@ int resolution_get(int socket, struct request *request, struct _srvutils *utils)
 int resolution_post(int socket, struct request *request, struct _srvutils *utils);
 
 int resolution_options(int socket);
+
+int executable_type(const char *path);
 
 SERVERCMD processHTTPRequest(int socket, struct _srvutils *utils) {
     size_t prevbuflen = 0;
@@ -88,7 +98,14 @@ int resolution_get(int socket, struct request *request, struct _srvutils *utils)
         strncat(fullpath, INDEX_PATH, newfullpath_size); // Concatenate the index.html path at the end
     }
 
-    int ret = send_file(socket, headers, fullpath, utils); // Attempt to serve the index file
+    enum EXECUTABLE type = executable_type(fullpath); // Check if the file is one of the executable extensions
+
+    int ret;
+    if (type != -1) { // If the file is of one of the executable types
+        ret = run_executable(socket, headers, request->querystring, utils, executable_cmd[type], fullpath);
+    } else {
+        ret = send_file(socket, headers, fullpath, utils); // Attempt to serve the index file
+    }
 
     free(fullpath);
     headers_free(headers);
@@ -110,4 +127,23 @@ int resolution_options(int socket) {
     headers_free(headers);
 
     return NO_CONTENT;
+}
+
+int executable_type(const char *path) {
+    if (!path) return -1;
+
+    char *ext = strrchr(path, '.'); // Find the extension
+    if (!ext) return -1; // If there's no extension
+    ext++; // skip the '.'
+
+    // TODO: Move away from hardcoded extensions
+    // Return the executable type, or -1 if it's not an executable file
+    if (strcmp(ext, "py") == 0) {
+        return PYTHON;
+    } else if (strcmp(ext, "php") == 0) {
+        return PHP;
+    } else {
+        return -1;
+    }
+
 }
