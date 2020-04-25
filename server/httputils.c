@@ -21,6 +21,15 @@
 
 #define CRLF_LEN strlen("\r\n") ///< Length of the string containing the response code (always three digit)
 
+#define PY_CMD "python"
+#define PHP_CMD "php"
+
+enum EXECUTABLE {
+    NON_EXECUTABLE,
+    PYTHON,
+    PHP
+};
+
 struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen) {
     if (!buf) return NULL;
 
@@ -104,17 +113,17 @@ int send_response_header(int socket, unsigned int code, const char *message, str
     return ret;
 }
 
-int send_response_body(int socket, const char *body, long body_len) {
+int send_response_body(int socket, const char *body, unsigned long body_len) {
     if (!body || body_len <= 0) return -1;
 
 #if DEBUG >= 3
     printf("Sending response body:\n%s\n", body);
 #endif
-    return send(socket, body, body_len + 1, 0);
+    return send(socket, body, body_len/* + 1*/, 0);
 }
 
 int respond(int socket, unsigned int code, const char *message, struct httpres_headers *headers, const char *body,
-            long body_len) {
+            unsigned long body_len) {
 #if DEBUG >= 1
     short int err = 0;
     long bytes_sent = 0;
@@ -190,6 +199,62 @@ off_t get_file_size(FILE *fd) {
     return s.st_size; // Return the file size
 }
 
+// TODO: Move executable file types to separate place?
+int executable_type(const char *path) {
+    if (!path) return -1;
+
+    char *executables[] = {"py", "php"};
+
+    char *ext = strrchr(path, '.'); // Find the extension
+    if (!ext) return -1; // If there's no extension
+    ext++; // skip the '.'
+
+    // Return the executable type, or -1 if it's not an executable file
+    if (strcmp(ext, "py") == 0) {
+        return PYTHON;
+    } else if (strcmp(ext, "php") == 0) {
+        return PHP;
+    } else {
+        return NON_EXECUTABLE;
+    }
+
+}
+
+unsigned long
+run_executable(const char *path, char *buf, size_t buf_size, enum EXECUTABLE type, struct _srvutils *utils) {
+    if (!path) return 0;
+
+    char *exec_cmd = NULL; // Pointer to the specific interpreter to execute
+
+    switch (type) { // Change the command to execute depending on the file type
+        case PYTHON:
+            exec_cmd = PY_CMD;
+            break;
+        case PHP:
+            exec_cmd = PHP_CMD;
+            break;
+        default:
+            return 0;
+    }
+    // Calculate required size for the command string and its null terminator
+    size_t command_size = snprintf(NULL, 0, "%s %s", exec_cmd, path) + 1;
+    char *command = malloc(sizeof(char) * command_size); // Allocate space for the command string
+    snprintf(command, command_size, "%s %s", exec_cmd, path); // Print the command string
+
+    FILE *fd = popen(command, "r");
+    free(command);
+    if (!fd) return 0;
+
+    unsigned long n_read = fread(buf, sizeof(char), buf_size, fd); // Read from the pipe
+    if (n_read > 0) { // If reading from the pipe goes well
+        utils->log(stdout, "Command output: \n%s", buf);
+    }
+
+    int ret = pclose(fd);
+
+    return n_read;
+}
+
 int send_file(int socket, struct httpres_headers *headers, const char *path, struct _srvutils *utils) {
     if (!headers || !path) return ERROR;
 
@@ -197,6 +262,22 @@ int send_file(int socket, struct httpres_headers *headers, const char *path, str
         respond(socket, NOT_FOUND, "Not found", headers, NULL, 0);
         return NOT_FOUND;
     }
+
+    enum EXECUTABLE type = executable_type(path);
+
+    if (type != NON_EXECUTABLE) {
+        char result[MAX_BUFFER];
+        memset(result, 0, MAX_BUFFER);
+        unsigned long result_len;
+
+        if ((result_len = run_executable(path, result, MAX_BUFFER, type, utils)) != 0) {
+            respond(socket, OK, "OK", headers, result, result_len);
+        } else {
+            respond(socket, INTERNAL_ERROR, "Execution error", headers, NULL, 0);
+        }
+    }
+
+
     FILE *f = fopen(path, "r");
     if (f) {
         long length = get_file_size(f);

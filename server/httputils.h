@@ -54,7 +54,7 @@ struct httpres_headers {
 
 
 int respond(int socket, unsigned int code, const char *message, struct httpres_headers *headers, const char *body,
-            long body_len);
+            unsigned long body_len);
 
 struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen);
 
