@@ -50,9 +50,13 @@ struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen) {
     size_t tmp_method_len, tmp_fullpath_len, path_len, qs_len;
 
 
-    phr_parse_request(buf, (size_t) buflen, &tmp_method, &tmp_method_len, &tmp_fullpath, &tmp_fullpath_len,
-                      &req->minor_version,
-                      req->headers, &req->num_headers, prevbuflen);
+    int pret = phr_parse_request(buf, (size_t) buflen, &tmp_method, &tmp_method_len, &tmp_fullpath, &tmp_fullpath_len,
+                                 &req->minor_version,
+                                 req->headers, &req->num_headers, prevbuflen);
+    if (pret == -1) { // If parsing failed
+        freeRequest(req); // Free the memory associated with the request
+        return NULL;
+    }
 
     // Obtain the location of the querystring, and calculate the length of path and querystring
     const char *tmp_querystring = get_querystring(tmp_fullpath, tmp_fullpath_len);
@@ -84,9 +88,10 @@ struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen) {
 STATUS freeRequest(struct request *request) {
     if (!request) return ERROR;
 
-    free((char *) request->path);
-    free((char *) request->method);
-    free((char *) request->querystring);
+    if (request->path) free((char *) request->path);
+    if (request->method) free((char *) request->method);
+    if (request->querystring) free((char *) request->querystring);
+
     free(request);
 
     return SUCCESS;

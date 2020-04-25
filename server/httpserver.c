@@ -50,6 +50,10 @@ SERVERCMD processHTTPRequest(int socket, struct _srvutils *utils) {
     }
 
     struct request *request = parseRequest(buffer, MAX_HTTPREQ, prevbuflen);
+    if (!request) { // If parsing failed
+        respond(socket, BAD_REQUEST, "Bad request", NULL, NULL, 0);
+        return CONTINUE;
+    }
 
     int code = route(socket, request, utils);
 
