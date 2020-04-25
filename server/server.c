@@ -370,6 +370,8 @@ void server_log(FILE *file, const char *format, ...) {
 void
 server_logv(FILE *file, const char *titlecolor, const char *subtitle, const char *subtitlecolor, const char *format,
             va_list args, const char *title) {
+    if (!file || !titlecolor || !title) return;
+
     char *timestr = get_time_str();
     flockfile(file); // Lock the file so that the entire output is printed atomically
     if (subtitle && subtitlecolor) {
