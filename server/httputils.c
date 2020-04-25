@@ -30,6 +30,21 @@ enum EXECUTABLE {
     PHP
 };
 
+/**
+ * @brief Returns a pointer to the querystring part of a path string
+ * @param[in] path The complete path (including the querystring)
+ * @param[in] path_len The length of the complete path
+ * @return Pointer to the beginning of the querystring, or NULL if there's no querystring or an error occurs
+ */
+const char *get_querystring(const char *path, size_t path_len) {
+    if (!path) return NULL;
+
+    char *qspos = memchr(path, '?', path_len);
+    if (!qspos) return NULL; // If the character wasn't found, there's no querystring
+
+    return qspos;
+}
+
 struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen) {
     if (!buf) return NULL;
 
@@ -40,18 +55,37 @@ struct request *parseRequest(const char *buf, int buflen, size_t prevbuflen) {
 
 
     // Temporal variables to store the method and path positions before copying them to the new structure
-    const char *tmp_method, *tmp_path;
-    size_t tmp_method_len, tmp_path_len;
+    const char *tmp_method, *tmp_fullpath;
+    size_t tmp_method_len, tmp_fullpath_len, path_len, qs_len;
 
 
-    phr_parse_request(buf, (size_t) buflen, &tmp_method, &tmp_method_len, &tmp_path, &tmp_path_len, &req->minor_version,
+    phr_parse_request(buf, (size_t) buflen, &tmp_method, &tmp_method_len, &tmp_fullpath, &tmp_fullpath_len,
+                      &req->minor_version,
                       req->headers, &req->num_headers, prevbuflen);
 
-    req->method = calloc(tmp_method_len + 1, sizeof(char));
-    req->path = calloc(tmp_path_len + 1, sizeof(char));
+    // Obtain the location of the querystring, and calculate the length of path and querystring
+    const char *tmp_querystring = get_querystring(tmp_fullpath, tmp_fullpath_len);
+    if (tmp_querystring) {
+        // The length of the path is the total one minus that of the querystring
+        path_len = tmp_querystring - tmp_fullpath;
+        // The length of the querystring is the total one minus that of the path
+        qs_len = tmp_fullpath_len - path_len;
 
+        req->querystring = calloc(qs_len + 1, sizeof(char)); // Allocate memory in the struct for the querystring
+        strncpy((char *) req->querystring, tmp_querystring, qs_len); // Copy the querystring to the structure
+    } else {
+        path_len = tmp_fullpath_len; // There's no querystring, so the length of the path is that of the full path
+        req->querystring = NULL; // Initialize the querystring field of the structure to NULL
+    }
+
+
+    // Allocate memory in the structure for method and path
+    req->method = calloc(tmp_method_len + 1, sizeof(char));
+    req->path = calloc(path_len + 1, sizeof(char));
+
+    // Copy method and path to the structure
     strncpy((char *) req->method, tmp_method, tmp_method_len);
-    strncpy((char *) req->path, tmp_path, tmp_path_len);
+    strncpy((char *) req->path, tmp_fullpath, path_len);
 
     return req;
 }

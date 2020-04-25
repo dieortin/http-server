@@ -38,6 +38,7 @@
 struct request {
     const char *method; ///< HTTP Method of the request
     const char *path; ///< Path of the request
+    const char *querystring; ///< Querystring part of the path
     int minor_version; ///< HTTP version of the request
     struct phr_header headers[100]; ///< Structure containing the request headers
     size_t num_headers; ///< Number of headers in the request
