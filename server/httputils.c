@@ -233,16 +233,14 @@ off_t get_file_size(FILE *fd) {
     return s.st_size; // Return the file size
 }
 
-// TODO: Move executable file types to separate place?
 int executable_type(const char *path) {
     if (!path) return -1;
-
-    char *executables[] = {"py", "php"};
 
     char *ext = strrchr(path, '.'); // Find the extension
     if (!ext) return -1; // If there's no extension
     ext++; // skip the '.'
 
+    // TODO: Move away from hardcoded extensions
     // Return the executable type, or -1 if it's not an executable file
     if (strcmp(ext, "py") == 0) {
         return PYTHON;
