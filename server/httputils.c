@@ -86,6 +86,7 @@ STATUS freeRequest(struct request *request) {
 
     free((char *) request->path);
     free((char *) request->method);
+    free((char *) request->querystring);
     free(request);
 
     return SUCCESS;
