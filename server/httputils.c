@@ -280,31 +280,95 @@ off_t get_file_size(FILE *fd) {
     return s.st_size; // Return the file size
 }
 
+/**
+ * @brief Spawns a child process executing the provided command, and routes its stdin and stdout to pipes
+ * @details This function is similar to popen(), but supports bidirectional communication with the spawned
+ * process. It creates pipes in both directions, so that the caller can later write to the spawned process'
+ * stdin, and read from its stdout. Heavily inspired in code by <psimerda@redhat.com>
+ * @author Diego Ortín Fernández
+ * @see https://github.com/crossdistro/netresolve/blob/master/backends/exec.c#L46
+ * @param[in]  command The argv of the command to be executed
+ * @param[out] pid Variable to store the process ID of the spawned process
+ * @param[out] infd Variable to store the descriptor number for writing to the process' stdin
+ * @param[out] outfd Variable to store the descriptor number for reading from the process' stdout
+ * @return 0 if something goes wrong, 1 otherwise
+ */
+int popen2(char *const command[], int *pid, int *infd, int *outfd) {
+    int pipe_in[2], pipe_out[2];
+
+    if (!pid || !infd || !outfd) return 0;
+
+    if (pipe(pipe_in) == -1) goto pipe1_error;
+    if (pipe(pipe_out) == -1) goto pipe2_error;
+    if ((*pid = fork()) == -1) goto fork_error;
+
+    if (*pid) { // If we're inside the parent process
+        *infd = pipe_in[1]; // Set the input descriptor to the write end of pipe_in
+        *outfd = pipe_out[0]; // Set the output descriptor to the read end of pipe_out
+
+        close(pipe_in[0]); // Close the read end of pipe_in, as we're not using it
+        close(pipe_out[1]); // Close the write end of pipe_out, as we're not using it
+
+        return 1;
+    } else { // If we're inside the child process
+        dup2(pipe_in[0], STDIN_FILENO); // Replace the process' stdin by the read end of pipe_in
+        dup2(pipe_out[1], STDOUT_FILENO); // Replace the process' stdout by the write end of pipe_in
+
+        // Close all the pipes
+        close(pipe_in[0]);
+        close(pipe_in[1]);
+        close(pipe_out[0]);
+        close(pipe_out[1]);
+
+        execvp(*command, command); // Execute the provided command
+
+        // If an error occurs
+        fprintf(stderr, "Error executing %s: %s", *command, strerror(errno));
+        abort();
+    }
+
+    fork_error:
+    close(pipe_out[1]);
+    close(pipe_out[0]);
+    pipe2_error:
+    close(pipe_in[1]);
+    close(pipe_in[0]);
+    pipe1_error:
+    return 0;
+}
+
 int run_executable(int socket, struct httpres_headers *headers, const char *querystring, struct _srvutils *utils,
                    const char *exec_cmd, const char *path) {
     if (!path) return 0;
 
-    char *command = NULL;
-    if (querystring) { // If a querystring has been provided
-        // Calculate required size for the command string and its null terminator
-        size_t command_size = snprintf(NULL, 0, "%s %s %s", exec_cmd, path, querystring) + 1;
-        command = malloc(sizeof(char) * command_size); // Allocate space for the command string
-        snprintf(command, command_size, "%s %s %s", exec_cmd, path, querystring); // Print the command string
-    } else { // If no querystring has been provided
-        // Calculate required size for the command string and its null terminator
-        size_t command_size = snprintf(NULL, 0, "%s %s", exec_cmd, path) + 1;
-        command = malloc(sizeof(char) * command_size); // Allocate space for the command string
-        snprintf(command, command_size, "%s %s", exec_cmd, path); // Print the command string
-    }
+    //char *command = NULL;
 
-    FILE *fd = popen(command, "r");
-    free(command);
-    if (!fd) return 0;
+    const char *command[3];
+    command[0] = exec_cmd;
+    command[1] = path;
+    command[2] = NULL;
+
+    // Calculate required size for the command string and its null terminator
+    //size_t command_size = snprintf(NULL, 0, "%s %s", exec_cmd, path) + 1;
+    //command = malloc(sizeof(char) * command_size); // Allocate space for the command string
+    //snprintf(command, command_size, "%s %s", exec_cmd, path); // Print the command string
+
+
+    pid_t pid;
+    int infd, outfd;
+
+    if (popen2((char *const *) command, &pid, &infd, &outfd) == 0) return 0;
+    //free(command);
+    //if (!fd) return 0;
+
+    // If the request had a querystring, write it to the script's stdin
+    if (querystring) write(infd, querystring + 1, strlen(querystring));
+
+    close(infd);
 
     char result[MAX_BUFFER + 1]; // Buffer to hold the result of the execution
 
-    unsigned long n_read = fread(result, sizeof(char), sizeof(result) / sizeof(result[0]), fd); // Read from the pipe
-    int cmd_ret = pclose(fd);
+    unsigned long n_read = read(outfd, result, sizeof(result) / sizeof(result[0])); // Read from the pipe
 
     if (n_read > 0) { // If reading from the pipe goes well
         utils->log(stdout, "Command output: \n%s", result);
