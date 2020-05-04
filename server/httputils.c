@@ -23,6 +23,28 @@
 #define CRLF_LEN strlen("\r\n") ///< Length of the string containing the response code (always three digit)
 
 /**
+ * @brief Attempts to get the content length of an HTTP request from its headers
+ * @param[in] headers Structure containing the headers of the request
+ * @param[in] num_headers Number of headers in the structure
+ * @return The content length specified in the headers, or 0 if an error occurs or there was no length header
+ */
+unsigned long get_content_length(struct phr_header *headers, size_t num_headers) {
+    if (!headers) return 0;
+
+    for (int i = 0; i < num_headers; i++) {
+        // Check if this header is Content-Length
+        if (strncmp(headers[i].name, HDR_CONTENT_LENGTH, headers[i].name_len) == 0) {
+            char *content_len_str = strndup(headers[i].value, headers[i].value_len); // Copy only the value section
+            long content_length = strtol(content_len_str, NULL, 10);
+            free(content_len_str);
+            return content_length;
+        }
+    }
+
+    return 0;
+}
+
+/**
  * @brief Returns a pointer to the querystring part of a path string
  * @param[in] path The complete path (including the querystring)
  * @param[in] path_len The length of the complete path
@@ -71,14 +93,17 @@ readParse(int socket, char *buf, size_t buf_size, int *minor_version, struct phr
 }
 
 parse_result parseRequest(int socket, struct request **request) {
-    char buf[MAX_HTTPREQ]; // Buffer to hold the request text
-    memset(buf, 0, MAX_HTTPREQ); // Zero out the buffer to prevent garbage
-
     struct request *newreq = calloc(1, sizeof(struct request));
     if (!newreq) return PARSE_INTERNALERR; // If allocation failed return internal error
 
     // Zero out the structure
     memset(newreq, 0, sizeof(struct request));
+
+    newreq->reqbuf = calloc(MAX_HTTPREQ, sizeof(char)); // Buffer to hold the request text
+    if (!newreq->reqbuf) { // If allocation failed return internal error
+        free(newreq);
+        return PARSE_INTERNALERR;
+    }
 
     // picohttpparser requires the number of headers to be set to the maximum one before parsing
     newreq->num_headers = sizeof(newreq->headers) / sizeof(newreq->headers[0]);
@@ -89,7 +114,8 @@ parse_result parseRequest(int socket, struct request **request) {
     size_t tmp_method_len, tmp_fullpath_len, path_len, qs_len;
 
 
-    parse_result pret = readParse(socket, buf, sizeof(buf) / sizeof(buf[0]), &newreq->minor_version, newreq->headers,
+    parse_result pret = readParse(socket, newreq->reqbuf, MAX_HTTPREQ / sizeof(char), &newreq->minor_version,
+                                  newreq->headers,
                                   &newreq->num_headers, &tmp_method_len, &tmp_fullpath_len, &tmp_method, &tmp_fullpath);
     if (pret != PARSE_OK) { // If parsing failed
         freeRequest(newreq); // Free the memory associated with the request
@@ -107,7 +133,7 @@ parse_result parseRequest(int socket, struct request **request) {
         newreq->querystring = calloc(qs_len + 1, sizeof(char)); // Allocate memory in the struct for the querystring
         if (!newreq->querystring) return PARSE_INTERNALERR;
         // Copy the querystring to the structure omitting the '?' character
-        strncpy((char *) newreq->querystring, tmp_querystring, qs_len + 1);
+        strncpy((char *) newreq->querystring, tmp_querystring + 1, qs_len);
     } else {
         path_len = tmp_fullpath_len; // There's no querystring, so the length of the path is that of the full path
         newreq->querystring = NULL; // Initialize the querystring field of the structure to NULL
@@ -124,6 +150,26 @@ parse_result parseRequest(int socket, struct request **request) {
     strncpy((char *) newreq->method, tmp_method, tmp_method_len);
     strncpy((char *) newreq->path, tmp_fullpath, path_len);
 
+    // If the request is POST, check its body length
+    if (strcmp(newreq->method, POST) == 0) {
+        newreq->body_len = get_content_length(newreq->headers, newreq->num_headers);
+    } else { // Else, set it to zero
+        newreq->body_len = 0;
+    }
+
+    if (newreq->body_len > 0) { // If the request has a body
+        int last_value_len = newreq->headers[newreq->num_headers - 1].value_len;
+
+        // Calculate the position of the body by moving past the last header value, and skipping the two consecutive
+        // CRLF line endings
+        const char *body_pos = newreq->headers[newreq->num_headers - 1].value + last_value_len + (CRLF_LEN * 2);
+
+        // Duplicate the body and put it into the structure
+        newreq->body = strndup(body_pos, newreq->body_len);
+    } else {
+        newreq->body = NULL; // If there's no body, set it to NULL
+    }
+
     *request = newreq;
 
     return PARSE_OK;
@@ -132,9 +178,11 @@ parse_result parseRequest(int socket, struct request **request) {
 STATUS freeRequest(struct request *request) {
     if (!request) return ERROR;
 
+    if (request->reqbuf) free((char *) request->reqbuf);
     if (request->path) free((char *) request->path);
     if (request->method) free((char *) request->method);
     if (request->querystring) free((char *) request->querystring);
+    if (request->body) free((char *) request->body);
 
     free(request);
 
@@ -228,7 +276,7 @@ respond(int socket, HTTP_RESPONSE_CODE code, const char *message, struct httpres
     shutdown(socket, SHUT_RD);
     close(socket);
 
-    return (int) code;
+    return code;
 }
 
 STATUS setDefaultHeaders(struct httpres_headers *headers) {
@@ -337,15 +385,15 @@ int popen2(char *const command[], int *pid, int *infd, int *outfd) {
     return 0;
 }
 
-int run_executable(int socket, struct httpres_headers *headers, const char *querystring, struct _srvutils *utils,
-                   const char *exec_cmd, const char *path) {
-    if (!path) return 0;
+int run_executable(int socket, struct httpres_headers *headers, struct request *request, struct _srvutils *utils,
+                   const char *exec_cmd, const char *fullpath) {
+    if (!fullpath || !exec_cmd || !utils || !request || !headers) return 0;
 
     //char *command = NULL;
 
     const char *command[3];
     command[0] = exec_cmd;
-    command[1] = path;
+    command[1] = fullpath;
     command[2] = NULL;
 
     // Calculate required size for the command string and its null terminator
@@ -362,7 +410,16 @@ int run_executable(int socket, struct httpres_headers *headers, const char *quer
     //if (!fd) return 0;
 
     // If the request had a querystring, write it to the script's stdin
-    if (querystring) write(infd, querystring + 1, strlen(querystring));
+    if (request->querystring) {
+        write(infd, request->querystring, strlen(request->querystring));
+        write(infd, "\r\n", 2);
+    }
+
+    // If the request has a body, write it to the script's stdin
+    if (request->body) {
+        write(infd, request->body, request->body_len);
+        write(infd, "\r\n", 2);
+    }
 
     close(infd);
 
@@ -393,6 +450,9 @@ HTTP_RESPONSE_CODE send_file(int socket, struct httpres_headers *headers, const 
 
         // Copy the entire file to the buffer
         char *buffer = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fileno(f), 0);
+        if (buffer == MAP_FAILED) {
+            return respond(socket, INTERNAL_ERROR, "Internal error", headers, NULL, 0);
+        }
 
         // Add the file headers
         add_last_modified(path, headers);

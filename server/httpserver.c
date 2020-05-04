@@ -23,7 +23,8 @@
 
 enum EXECUTABLE {
     PYTHON,
-    PHP
+    PHP,
+    NON_EXECUTABLE
 };
 
 char *executable_cmd[] = {"python", "php"};
@@ -36,7 +37,7 @@ int resolution_post(int socket, struct request *request, struct _srvutils *utils
 
 int resolution_options(int socket);
 
-int executable_type(const char *path);
+enum EXECUTABLE executable_type(const char *path);
 
 SERVERCMD processHTTPRequest(int socket, struct _srvutils *utils) {
     int routecode;
@@ -115,8 +116,8 @@ int resolution_get(int socket, struct request *request, struct _srvutils *utils)
     enum EXECUTABLE type = executable_type(fullpath); // Check if the file is one of the executable extensions
 
     int ret;
-    if (type != -1) { // If the file is of one of the executable types
-        ret = run_executable(socket, headers, request->querystring, utils, executable_cmd[type], fullpath);
+    if (type != NON_EXECUTABLE) { // If the file is of one of the executable types
+        ret = run_executable(socket, headers, request, utils, executable_cmd[type], fullpath);
     } else {
         ret = send_file(socket, headers, fullpath); // Attempt to serve the index file
     }
@@ -128,7 +129,43 @@ int resolution_get(int socket, struct request *request, struct _srvutils *utils)
 
 // TODO: Implement
 int resolution_post(int socket, struct request *request, struct _srvutils *utils) {
-    return respond(socket, METHOD_NOT_ALLOWED, "Not supported", NULL, NULL, 0);
+    //create header structure
+    struct httpres_headers *headers = create_header_struct();
+    setDefaultHeaders(headers);
+
+    // Calculate the size that the full path will have
+    size_t fullpath_size = strlen(utils->webroot) + strlen(request->path) + 1;
+
+    // Allocate enough space for the entire path and the null terminator
+    char *fullpath = calloc(sizeof(char), fullpath_size);
+
+    // Concatenate both parts of the path to obtain the full path
+    strcat(fullpath, utils->webroot);
+    strcat(fullpath, request->path);
+
+#if DEBUG >= 2
+    utils->log(stdout, "Full path: %s", fullpath);
+#endif
+
+    int ret;
+
+    if (is_directory(fullpath)) { // If it's a directory, return a forbidden code
+        ret = respond(socket, FORBIDDEN, "Can't POST there", headers, NULL, 0);
+        goto end;
+    }
+
+    enum EXECUTABLE type = executable_type(fullpath); // Check if the file is one of the executable extensions
+
+    if (type != NON_EXECUTABLE) { // If the file is of one of the executable types
+        ret = run_executable(socket, headers, request, utils, executable_cmd[type], fullpath);
+    } else { // If it's not an executable extension, return a forbidden code
+        ret = respond(socket, FORBIDDEN, "Can't POST there", headers, NULL, 0);
+    }
+
+    end:
+    free(fullpath);
+    headers_free(headers);
+    return ret;
 }
 
 int resolution_options(int socket) {
@@ -143,7 +180,7 @@ int resolution_options(int socket) {
     return NO_CONTENT;
 }
 
-int executable_type(const char *path) {
+enum EXECUTABLE executable_type(const char *path) {
     if (!path) return -1;
 
     char *ext = strrchr(path, '.'); // Find the extension
@@ -157,7 +194,7 @@ int executable_type(const char *path) {
     } else if (strcmp(ext, "php") == 0) {
         return PHP;
     } else {
-        return -1;
+        return NON_EXECUTABLE;
     }
 
 }

@@ -15,6 +15,7 @@
 #include "uthash.h"
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 #include "mimetable.h"
 
 #define MAX_EXTENSION 10 ///< Maximum length of a file extension

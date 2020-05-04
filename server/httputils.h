@@ -54,8 +54,8 @@ typedef enum _HTTP_RESPONSE_CODE {
             NO_CONTENT = 204,
     BAD_REQUEST = 400,
     //UNAUTHORIZED = 401,
-    //FORBIDDEN = 403,
-            NOT_FOUND = 404,
+            FORBIDDEN = 403,
+    NOT_FOUND = 404,
     METHOD_NOT_ALLOWED = 405,
     INTERNAL_ERROR = 500,
     //NOT_IMPLEMENTED = 501,
@@ -67,9 +67,12 @@ typedef enum _HTTP_RESPONSE_CODE {
  * @brief Stores all the data related to an HTTP request
  */
 struct request {
+    char *reqbuf; ///< The request in full
     const char *method; ///< HTTP Method of the request
     const char *path; ///< Path of the request
     const char *querystring; ///< Querystring part of the path
+    const char *body; ///< Body of the request
+    unsigned long body_len; ///< Length of the request body
     int minor_version; ///< HTTP version of the request
     struct phr_header headers[MAX_HEADERS]; ///< Structure containing the request headers
     size_t num_headers; ///< Number of headers in the request
@@ -167,21 +170,21 @@ int is_directory(const char *path);
 HTTP_RESPONSE_CODE send_file(int socket, struct httpres_headers *headers, const char *path);
 
 /**
- * @brief Executes the script in the path using the provided command, passing arguments to it via stdin
+ * @brief Executes the script in the request path using the provided command, passing arguments to it via stdin
  * @details This function runs the provided command with the path as its first parameter. It then writes the
  * querystring and the POST parameters to its standard input. Finally, it reads the result of the script execution,
  * and sends it to the socket as an HTTP response.
  * @author Diego Ortín Fernández
  * @param[out] socket The socket to which the response must be sent
  * @param[in] headers Structure containing the headers for the response
- * @param[in] querystring Querystring of the request (can be NULL)
+ * @param[in] request Request from which the data must be obtained
  * @param[in] utils Structure containing utilities (used for logging)
  * @param[in] exec_cmd Command to be used
- * @param[in] path Path to be executed using the command
+ * @param[in[ fullpath Absolute path of the executable file in the system
  * @return 0 if an error occurs, 1 otherwise
  */
-int run_executable(int socket, struct httpres_headers *headers, const char *querystring, struct _srvutils *utils,
-                   const char *exec_cmd, const char *path);
+int run_executable(int socket, struct httpres_headers *headers, struct request *request, struct _srvutils *utils,
+                   const char *exec_cmd, const char *fullpath);
 
 /**
  * @brief Sets the Last-Modified header to the last modified date of the provided date
