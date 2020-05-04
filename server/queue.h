@@ -37,7 +37,7 @@ int queue_isempty(queue *queue);
 /**
  * @brief Extracts the first item from the queue
  * @details If there are no available items in the queue, this function blocks execution until a new item is added.
- * @param[in/out] queue The queue to extract from
+ * @param[in,out] queue The queue to extract from
  * @return The value of the extracted item
  */
 int queue_pop(queue *queue);

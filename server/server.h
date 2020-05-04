@@ -12,8 +12,8 @@
 #ifndef PRACTICA1_SERVER_H
 #define PRACTICA1_SERVER_H
 
-#define DEFAULT_MAX_QUEUE 100
-#define DEFAULT_NTHREADS 2
+#define DEFAULT_MAX_QUEUE 100 ///< Maximum amount of clients in the queue used by default
+#define DEFAULT_NTHREADS 2 ///< Number of threads used by default
 
 #include "constants.h"
 #include <stdio.h>

@@ -51,7 +51,7 @@ readParse(int socket, char *buf, size_t buf_size, int *minor_version, struct phr
     while (1) {
         while ((rret = read(socket, buf + buflen, buf_size - buflen)) == -1 && errno == EINTR);
 
-        if (rret <= 0) { // IO error
+        if (rret < 0) { // IO error
             return PARSE_IOERROR;
         }
         prevbuflen = buflen;
@@ -101,12 +101,13 @@ parse_result parseRequest(int socket, struct request **request) {
     if (tmp_querystring) {
         // The length of the path is the total one minus that of the querystring
         path_len = tmp_querystring - tmp_fullpath;
-        // The length of the querystring is the total one minus that of the path
-        qs_len = tmp_fullpath_len - path_len;
+        // The length of the querystring is the total one minus that of the path and minus the '?' character
+        qs_len = tmp_fullpath_len - path_len - 1;
 
         newreq->querystring = calloc(qs_len + 1, sizeof(char)); // Allocate memory in the struct for the querystring
         if (!newreq->querystring) return PARSE_INTERNALERR;
-        strncpy((char *) newreq->querystring, tmp_querystring, qs_len); // Copy the querystring to the structure
+        // Copy the querystring to the structure omitting the '?' character
+        strncpy((char *) newreq->querystring, tmp_querystring, qs_len + 1);
     } else {
         path_len = tmp_fullpath_len; // There's no querystring, so the length of the path is that of the full path
         newreq->querystring = NULL; // Initialize the querystring field of the structure to NULL
@@ -196,8 +197,9 @@ int send_response_body(int socket, const char *body, unsigned long body_len) {
     return send(socket, body, body_len/* + 1*/, 0);
 }
 
-int respond(int socket, unsigned int code, const char *message, struct httpres_headers *headers, const char *body,
-            unsigned long body_len) {
+HTTP_RESPONSE_CODE
+respond(int socket, HTTP_RESPONSE_CODE code, const char *message, struct httpres_headers *headers, const char *body,
+        unsigned long body_len) {
 #if DEBUG >= 1
     short int err = 0;
     long bytes_sent = 0;
@@ -241,7 +243,7 @@ STATUS setDefaultHeaders(struct httpres_headers *headers) {
     //create date header
     set_header(headers, HDR_DATE, timeStr);
     //create server header
-    set_header(headers, HDR_SERVER_ORIGIN, "httpServer");
+    set_header(headers, HDR_SERVER_ORIGIN, "httpServer"); // FIXME: USE SERVER SIGNATURE FROM CONFIG FILE
     return SUCCESS;
 }
 
@@ -260,6 +262,11 @@ int is_directory(const char *path) {
     return S_ISDIR(path_stat.st_mode); // NOLINT(hicpp-signed-bitwise)
 }
 
+/**
+ * @brief Returns the size of the provided file
+ * @param[in] fd File descriptor whose size must be found out
+ * @return Size of the file, or -1 if an error occurs
+ */
 off_t get_file_size(FILE *fd) {
     if (!fd) return -1;
 
@@ -307,12 +314,13 @@ int run_executable(int socket, struct httpres_headers *headers, const char *quer
     }
 }
 
-int send_file(int socket, struct httpres_headers *headers, const char *path, struct _srvutils *utils) {
-    if (!headers || !path) return ERROR;
+HTTP_RESPONSE_CODE send_file(int socket, struct httpres_headers *headers, const char *path) {
+    if (!headers || !path) {
+        return respond(socket, INTERNAL_ERROR, "Internal error", NULL, NULL, 0);
+    }
 
     if (!is_regular_file(path)) { // If it's not a regular file (i.e. is a directory, pipe, link...)
-        respond(socket, NOT_FOUND, "Not found", headers, NULL, 0);
-        return NOT_FOUND;
+        return respond(socket, NOT_FOUND, "Not found", headers, NULL, 0);
     }
 
     FILE *f = fopen(path, "r");
@@ -342,7 +350,6 @@ int send_file(int socket, struct httpres_headers *headers, const char *path, str
     }
 }
 
-/*from https://github.com/Menghongli/C-Web-Server/blob/master/get-mime-type.c*/
 STATUS add_content_type(const char *filePath, struct httpres_headers *headers) {
     const char *content_name = NULL;
     content_name = get_mime_type(filePath);
@@ -384,6 +391,7 @@ const char *get_mime_type(const char *name) {
 
 struct httpres_headers *create_header_struct() {
     struct httpres_headers *new = malloc(sizeof(struct httpres_headers));
+    if (!new) return NULL; // Check for malloc error
     new->headers = NULL;
     new->num_headers = 0;
     return new;
@@ -414,10 +422,12 @@ STATUS set_header(struct httpres_headers *headers, const char *name, const char 
 void headers_free(struct httpres_headers *headers) {
     if (!headers) return;
 
-    for (int i = 0; i < headers->num_headers; i++) {
-        free(headers->headers[i]);
+    if (headers->headers) {
+        for (int i = 0; i < headers->num_headers; i++) {
+            if (headers->headers[i]) free(headers->headers[i]);
+        }
+        free(headers->headers);
     }
-    if (headers->headers) free(headers->headers);
 
     free(headers);
 }

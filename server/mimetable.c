@@ -15,13 +15,12 @@
 #include "uthash.h"
 #include <string.h>
 #include <stdio.h>
-#include <errno.h>
 #include "mimetable.h"
 
-#define MAX_EXTENSION 10
-#define MAX_MIMETYPE 30
+#define MAX_EXTENSION 10 ///< Maximum length of a file extension
+#define MAX_MIMETYPE 30 ///< Maximum extension of a MIME type
 
-#define TAB_DELIM "\t"
+#define TAB_DELIM "\t" ///< String representing a tab delimiter
 
 /**
  * @struct mime_association
@@ -41,6 +40,12 @@ STATUS mime_parse_line(char *line);
 #pragma ide diagnostic ignored "hicpp-signed-bitwise"
 #pragma ide diagnostic ignored "hicpp-multiway-paths-covered"
 
+/**
+ * @brief Adds a new extension-type association to the MIME hashtable
+ * @param[in] extension The extension to add
+ * @param[in] type The associated MIME type
+ * @return \ref STATUS.SUCCESS if everything goes well, \ref STATUS.ERROR otherwise
+ */
 STATUS mime_add_association(char *extension, char *type) {
     if (!extension || !type) return ERROR;
     struct mime_association *mime_association = NULL;
@@ -121,6 +126,12 @@ STATUS mime_add_from_file(const char *filename) {
     return SUCCESS;
 }
 
+/**
+ * @brief Parses a line containing an extension and its associated MIME type separated by a tab delimiter, and adds the
+ * corresponding association to the hash table
+ * @param[in] line Line to parse
+ * @return \ref STATUS.SUCCESS if everything goes well, \ref STATUS.ERROR otherwise
+ */
 STATUS mime_parse_line(char *line) {
     if (!line) return ERROR;
 

@@ -57,7 +57,7 @@ char *get_full_webroot(const char *webroot);
  */
 struct _server {
     const struct config_param *config; ///< Dictionary which contains the user defined parameters for the server
-    struct sockaddr_in address; ///< A #sockaddr_in structure containing the parameters for socket binding
+    struct sockaddr_in address; ///< A structure containing the parameters for socket binding
     int addrlen; ///< Contains the length of the #_server.address structure
     int socket_descriptor; ///< Stores the main socket descriptor where the #Server is listening
     queue *queue; ///< Integer queue where the socket identifiers from new connections will be added for processing

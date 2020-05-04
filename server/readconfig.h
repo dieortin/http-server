@@ -11,33 +11,9 @@
 #include "constants.h"
 #include "uthash.h"
 
-//#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
-//#define MAX_PARAM_NAME MAX(MAX(sizeof CONFIG_PORT, sizeof CONFIG_WEBROOT), MAX(sizeof CONFIG_NTHREADS, sizeof CONFIG_QUEUE_SIZE))
 #define MAX_PARAM_NAME 30 ///< Biggest possible size for a configuration parameter name
 
-// Automatic enum and array creation
-/*#define FOREACH_PARAM(PARAM) \
-		PARAM(PORT) \
-		PARAM(WEBROOT) \
-		PARAM(NTHREADS) \
-		PARAM(QUEUE_SIZE) \
-
-#define GENERATE_ENUM(ENUM) ENUM,
-#define GENERATE_STRING(STRING) #STRING,
-
-enum OPTIONS {
-	FOREACH_PARAM(GENERATE_ENUM)
-};
-
-static const char *OPTIONS_STR[] = {
-		FOREACH_PARAM(GENERATE_STRING)
-};*/
-
-//#define str(x) #x
-//#define xstr(x) str(x) /// Stringify
-
 /**
- * @enum config_partype
  * @author Diego Ortín Fernández
  * @date 11 March 2020
  * @brief Each member of the enumeration represents one type of data of which a
@@ -59,7 +35,6 @@ struct supported_param {
     config_partype type; ///< The expected type for the parameter
 };
 
-// TODO: Move the supported parameters part to the server files, as it depends on the server implementation
 // Supported parameters:
 //====================================
 /**
@@ -109,7 +84,7 @@ static const struct supported_param USERPARAMS_META[] = {
 union param_value {
     int integer; ///< Member which stores the data when the type is integer
     char string[MAX_CONFIG_STR]; ///< Member which stores the data when the type is string
-}; // TODO: Make dynamic?
+};
 
 /**
  * @struct config_param
@@ -137,7 +112,7 @@ struct config_param {
  * @see config_addparam_int
  * @see config_addparam_str
  * @pre @p value must contain data of the type specified by @p type
- * @param[in/out] configuration The configuration dictionary in which the parameter should be added
+ * @param[in,out] configuration The configuration dictionary in which the parameter should be added
  * @param[in] name The name of the parameter
  * @param[in] value The value of the parameter
  * @param[in] type The type of the parameter
@@ -151,9 +126,9 @@ STATUS config_add_parameter(const struct config_param **configuration, char *nam
  * @brief Adds a new @c int type parameter to the configuration dictionary
  * @author Diego Ortín Fernández
  * @date 11 March 2020
- * @param[in/out] configuration The configuration dictionary in which the parameter should be added
- * @param name[in] The name of the parameter
- * @param value[in] The value of the parameter
+ * @param[in,out] configuration The configuration dictionary in which the parameter should be added
+ * @param[in] name The name of the parameter
+ * @param[in] value The value of the parameter
  * @return @ref STATUS.SUCCESS if the parameter could be added, @ref STATUS.ERROR if a parameter with
  * the same name already existed or if any error is encountered
  */
@@ -163,9 +138,9 @@ STATUS config_addparam_int(const struct config_param **configuration, char *name
  * @brief Adds a new @c char* type parameter to the configuration dictionary
  * @author Diego Ortín Fernández
  * @date 11 March 2020
- * @param[in/out] configuration The configuration dictionary in which the parameter should be added
- * @param name[in] The name of the parameter
- * @param value[in] The value of the parameter
+ * @param[in,out] configuration The configuration dictionary in which the parameter should be added
+ * @param[in] name The name of the parameter
+ * @param[in] value The value of the parameter
  * @return @ref STATUS.SUCCESS if the parameter could be added, @ref STATUS.ERROR if a parameter with
  * the same name already existed or if any error is encountered
  */
@@ -175,9 +150,9 @@ STATUS config_addparam_str(const struct config_param **configuration, char *name
  * @brief Obtains the value of the @c int type parameter associated with the name @p name
  * @author Diego Ortín Fernández
  * @date 11 March 2020
- * @param configuration[in] The configuration dictionary in which the parameter should be searched for
- * @param name[in] The name of the parameter
- * @param out[out] Pointer to the @c int variable where the value must be stored
+ * @param[in] configuration The configuration dictionary in which the parameter should be searched for
+ * @param[in] name The name of the parameter
+ * @param[out] out Pointer to the @c int variable where the value must be stored
  * @return 0 if no errors ocurred, -1 if any parameters were wrong, -2 if no key-value pair was found
  * with that name, and -3 if the type of the key-value pair isn't @ref PARTYPE_INTEGER
  */
@@ -187,9 +162,9 @@ int config_getparam_int_n(const struct config_param **configuration, const char 
  * @brief Obtains the value of the @c int type parameter associated with the supported option @p option
  * @author Diego Ortín Fernández
  * @date 12 March 2020
- * @param configuration[in] The configuration dictionary in which the parameter should be searched for
- * @param option[in] The supported user parameter whose value should be retrieved
- * @param out[out] Pointer to the @c char* variable where the value must be stored
+ * @param[in] configuration The configuration dictionary in which the parameter should be searched for
+ * @param[in] option The supported user parameter whose value should be retrieved
+ * @param[out] out Pointer to the @c char* variable where the value must be stored
  * @return 0 if no errors ocurred, -1 if any parameters were wrong, -2 if no key-value pair was found
  * with that name, and -3 if the type of the key-value pair isn't @ref PARTYPE_INTEGER
  */
@@ -199,9 +174,9 @@ int config_getparam_int(const struct config_param **configuration, enum USER_PAR
  * @brief Obtains the value of the @c char* type parameter associated with the name @p name
  * @author Diego Ortín Fernández
  * @date 11 March 2020
- * @param configuration[in] The configuration dictionary in which the parameter should be searched for
- * @param name[in] The name of the parameter
- * @param out[out] Pointer to the @c char* variable where the value must be stored
+ * @param[in] configuration The configuration dictionary in which the parameter should be searched for
+ * @param[in] name The name of the parameter
+ * @param[out] out Pointer to the @c char* variable where the value must be stored
  * @return 0 if no errors ocurred, -1 if any parameters were wrong, -2 if no key-value pair was found
  * with that name, and -3 if the type of the key-value pair isn't @ref PARTYPE_STRING
  */
@@ -211,9 +186,9 @@ int config_getparam_str_n(const struct config_param **configuration, const char 
  * @brief Obtains the value of the @c char* type parameter associated with the supported option @p option
  * @author Diego Ortín Fernández
  * @date 12 March 2020
- * @param configuration[in] The configuration dictionary in which the parameter should be searched for
- * @param option[in] The supported user parameter whose value should be retrieved
- * @param out[out] Pointer to the @c char* variable where the value must be stored
+ * @param[in] configuration The configuration dictionary in which the parameter should be searched for
+ * @param[in] option The supported user parameter whose value should be retrieved
+ * @param[out] out Pointer to the @c char* variable where the value must be stored
  * @return 0 if no errors ocurred, -1 if any parameters were wrong, -2 if no key-value pair was found
  * with that name, and -3 if the type of the key-value pair isn't @ref PARTYPE_STRING
  */
@@ -223,9 +198,9 @@ int config_getparam_str(const struct config_param **configuration, enum USER_PAR
  * @brief Obtains the value of the parameter associated with the name @p name
  * @author Diego Ortín Fernández
  * @date 11 March 2020
- * @param configuration[in] The configuration dictionary in which the parameter should be searched for
- * @param name[in] The name associated with the key-value pair to be retrieved
- * @param out[out] Pointer that will be set to point to the found parameter
+ * @param[in] configuration The configuration dictionary in which the parameter should be searched for
+ * @param[in] name The name associated with the key-value pair to be retrieved
+ * @param[out] out Pointer that will be set to point to the found parameter
  * @return 0 if the operation executed successfully, -1 if any parameters were wrong, -2 if no key-value pair
  * was found for that name
  */
@@ -234,8 +209,8 @@ int config_getparam(const struct config_param **configuration, const char *name,
 /**
  * @brief Parses the configuration file with name @p filename in path @ref CONFIG_PATH of the server directory,
  * and attempts to add its parameters to the provided configuration dictionary.
- * @param filename[in] The name of the configuration file
- * @param configuration[out] The dictionary in which the configuration options must be added
+ * @param[in] filename The name of the configuration file
+ * @param[out] configuration The dictionary in which the configuration options must be added
  * @return -1 if any error occurs, 0 otherwise
  */
 int parseConfig(char *filename, const struct config_param **configuration);

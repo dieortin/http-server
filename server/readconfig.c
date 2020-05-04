@@ -23,7 +23,7 @@
 
 #include "readconfig.h"
 
-#define PARTYPE_MAX 10
+#define PARTYPE_MAX 10 ///< Maximum size of the name of a parameter type
 
 // Private functions
 //======================================================
@@ -36,7 +36,7 @@
  * the string to an @c int instead of to a @c long. If the number to be converted doesn't fit
  * in an integer, @c errno will be set appropiately to indicate the range error.
  * @param[in] s String which will be converted to @c int
- * @param[out] endptr Pointer which will be set to the first non-numerical value in @p s
+ * @param[out] endptr Pointer which will be set to the first non-numerical value in the provided string
  * @param[in] base Base to use in the conversion
  * @return The integer resulting from the conversion, or the maximum/minimum value that fits
  * in an integer if the number doesn't fit in an int.
@@ -63,7 +63,7 @@ char *type_to_str(config_partype type);
  * @author Diego Ortín Fernández
  * @date 10 March 2020
  * @param[in] str The string whose type must be inferred
- * @return The @ref config_partype of @p str
+ * @return The @ref config_partype of the provided string
  */
 /*config_partype str_get_type(char *str) {
 	for (int i = 0; i < strlen(str); i++) {
@@ -75,7 +75,7 @@ char *type_to_str(config_partype type);
 }*/
 
 /**
- * @brief Finds the metadata for the option corresponding to the string @p str
+ * @brief Finds the metadata for the option corresponding to the string
  * @author Diego Ortín Fernández
  * @date 12 March 2020
  * @param[in] str The string whose corresponding option must be found
@@ -84,12 +84,12 @@ char *type_to_str(config_partype type);
 const struct supported_param *get_matching_option(const char *str) {
     if (!str) return NULL;
 
-    for (int i = 0; i < USERPARAMS_NUM; i++) { /// Check if any options match the string
-        /// Return the corresponding option metadata
+    for (int i = 0; i < USERPARAMS_NUM; i++) { // Check if any options match the string
+        // Return the corresponding option metadata
         if (strcmp(USERPARAMS_META[i].name, str) == 0) return &USERPARAMS_META[i];
     }
 
-    return NULL; /// If it didn't match anything, return NULL
+    return NULL; // If it didn't match anything, return NULL
 }
 
 /**
@@ -105,15 +105,15 @@ const struct supported_param *get_matching_option(const char *str) {
 void parseLine(const struct config_param **configuration, const char *str) {
     char parName[MAX_LINE], parValue[MAX_LINE];
 
-    sscanf(str, "%[^= ]=%s", parName, parValue); /// Separate the line into key and value
+    sscanf(str, "%[^= ]=%s", parName, parValue); // Separate the line into key and value
 
     const struct supported_param *paramData = NULL;
-    if ((paramData = get_matching_option(parName)) != NULL) { /// If the option is supported
+    if ((paramData = get_matching_option(parName)) != NULL) { // If the option is supported
         STATUS ret;
-        if (paramData->type == PARTYPE_INTEGER) { /// If the parameter's type is integer
-            int parValueInt = strtoi(parValue, NULL, 10); /// Convert the value string to int
+        if (paramData->type == PARTYPE_INTEGER) { // If the parameter's type is integer
+            int parValueInt = strtoi(parValue, NULL, 10); // Convert the value string to int
             ret = config_addparam_int(configuration, parName,
-                                      parValueInt); /// Add the parameter to the configuration
+                                      parValueInt); // Add the parameter to the configuration
 #if DEBUG >= 2
             if (ret == SUCCESS) {
                 printf("Added new parameter '%s' with value '%i'\n", parName, parValueInt);
@@ -121,8 +121,8 @@ void parseLine(const struct config_param **configuration, const char *str) {
                 printf("Couldn't add new parameter '%s' with value '%i'\n", parName, parValueInt);
             }
 #endif
-        } else if (paramData->type == PARTYPE_STRING) { /// If the parameter's type is string
-            ret = config_addparam_str(configuration, parName, parValue); /// Add the parameter to the configuration
+        } else if (paramData->type == PARTYPE_STRING) { // If the parameter's type is string
+            ret = config_addparam_str(configuration, parName, parValue); // Add the parameter to the configuration
 #if DEBUG >= 2
             if (ret == SUCCESS) {
                 printf("Added new parameter '%s' with value %s\n", parName, parValue);
@@ -267,7 +267,6 @@ int parseConfig(char *filename, const struct config_param **configuration) {
     }
 
     char current_line[MAX_LINE];
-    // TODO: Make this dynamic (dictionary with each variable name and type?)
     while (fgets(current_line, MAX_LINE, configFile) != NULL) {
         parseLine(configuration, current_line);
     }

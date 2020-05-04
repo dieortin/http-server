@@ -19,7 +19,7 @@
  * @date 5 April 2020
  * @pre File located in @p filename must contain one association per line, with the extension first, separated from the
  * MIME type by a tab character: <extension>\\t<mimetype>\\n
- * @param filename[in] The filename of the file to parse
+ * @param[in] filename The filename of the file to parse
  * @return @ref STATUS.SUCCESS if at least one association was added successfully, @ref STATUS.ERROR if any error
  * ocurred or if no associations were added successfully.
  */
@@ -30,7 +30,7 @@ STATUS mime_add_from_file(const char *filename);
  * @author Diego Ortín Fernández
  * @date 4 April 2020
  * @pre The association for the @p extension must exist in the table
- * @param extension[in] The extension whose corresponding MIME type must be retrieved
+ * @param[in] extension The extension whose corresponding MIME type must be retrieved
  * @return pointer to the string containing the MIME type
  */
 const char *mime_get_association(const char *extension);

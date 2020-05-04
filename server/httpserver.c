@@ -9,6 +9,7 @@
  * @see server.h
  * @author Diego Ortín and Mario López
  * @date February 2020
+ *
  */
 
 #include <stdio.h>
@@ -45,8 +46,11 @@ SERVERCMD processHTTPRequest(int socket, struct _srvutils *utils) {
     switch (pres) {
         case PARSE_OK:
             routecode = route(socket, request, utils);
-
-            utils->log(stdout, "%s %s %i", request->method, request->path, routecode);
+            if (request->querystring) {
+                utils->log(stdout, "%s %s%s %i", request->method, request->path, request->querystring, routecode);
+            } else {
+                utils->log(stdout, "%s %s %i", request->method, request->path, routecode);
+            }
             freeRequest(request);
 
             return CONTINUE; /// Tell the server to continue accepting requests
@@ -114,7 +118,7 @@ int resolution_get(int socket, struct request *request, struct _srvutils *utils)
     if (type != -1) { // If the file is of one of the executable types
         ret = run_executable(socket, headers, request->querystring, utils, executable_cmd[type], fullpath);
     } else {
-        ret = send_file(socket, headers, fullpath, utils); // Attempt to serve the index file
+        ret = send_file(socket, headers, fullpath); // Attempt to serve the index file
     }
 
     free(fullpath);
