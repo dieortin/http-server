@@ -12,7 +12,7 @@
 #include <stdarg.h>
 #include <time.h>
 #include <string.h>
-#include <libnet.h>
+#include <arpa/inet.h>
 #include <pthread.h>
 #include <semaphore.h>
 
