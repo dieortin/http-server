@@ -1,0 +1,2 @@
+add_library(picohttpparser picohttpparser.c)
+target_include_directories(picohttpparser INTERFACE ${CMAKE_CURRENT_LIST_DIR})

@@ -65,7 +65,7 @@ static const struct supported_param USERPARAMS_META[] = {
         {"WEBROOT",    PARTYPE_STRING},
         {"NTHREADS",   PARTYPE_INTEGER},
         {"QUEUE_SIZE", PARTYPE_INTEGER},
-        {"MIME_FILE", PARTYPE_STRING}
+        {"MIME_FILE",  PARTYPE_STRING}
 };
 
 #define USERPARAMS_NUM (sizeof(USERPARAMS_META) / sizeof(USERPARAMS_META[0])) ///< Number of supported parameters

@@ -1,0 +1,51 @@
+cmake_minimum_required(VERSION 3.15)
+project(practica1 C)
+
+set(CMAKE_C_STANDARD 11)
+
+find_package(Threads)
+
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -g")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=leak -g")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=thread -g")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=undefined -g")
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=memory -g")
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+include_directories(core/include)
+
+add_subdirectory(httputils)
+
+add_subdirectory(httpserver)
+
+add_subdirectory(picohttpparser)
+
+add_subdirectory(mimetable)
+
+add_subdirectory(queue)
+
+add_subdirectory(readconfig)
+
+add_subdirectory(server)
+
+add_subdirectory(uthash)
+
+target_link_libraries(mimetable uthash)
+
+
+add_executable(practica1 core/src/main.c)
+target_include_directories(practica1 PUBLIC core/include httputils httpserver mimetable queue
+        readconfig server uthash)
+target_link_libraries(practica1 ${CMAKE_THREAD_LIBS_INIT} httpserver)
+
+
+add_executable(queue_test test/queue_test.c)
+target_link_libraries(queue_test queue)
+
+add_executable(mimetable_test test/mimetable_test.c)
+target_link_libraries(mimetable_test mimetable)
+
+#add_executable(readconfig_test readconfig_test.c readconfig.c readconfig.h uthash.h)
