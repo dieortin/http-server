@@ -3,7 +3,8 @@
 //
 
 #include <assert.h>
-#include "../queue.h"
+#include <stdio.h>
+#include "queue.h"
 
 int main() {
     queue *q = queue_create(20);
@@ -21,4 +22,6 @@ int main() {
     assert(queue_isempty(q) == 1);
 
     queue_free(q);
+
+    printf("Queue module tested correctly\n");
 }

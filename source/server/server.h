@@ -15,6 +15,8 @@
 #define DEFAULT_MAX_QUEUE 100 ///< Maximum amount of clients in the queue used by default
 #define DEFAULT_NTHREADS 2 ///< Number of threads used by default
 
+#define CONFIG_FILENAME "server.cfg" ///< Name of the configuration file to open
+
 #include "constants.h"
 #include <stdio.h>
 
@@ -48,14 +50,15 @@ struct _srvutils {
  * to operate. The configuration file provides the basic parameters for server operation, such as port number,
  * number of threads or webroot folder. Passing a request processor function allows for reusing of the #Server
  * with different processor functions.
- * @pre A configuration file with at least the basic parameters must exist in the path defined by @p config_filename.
- * @param[in] config_filename The name of the file to use for reading the server configuration. It must be in
+ * @pre A configuration file called server.cfg with at least the basic parameters must exist in the path defined by
+ * proj_root.
+ * @param[in] proj_root The name of the file to use for reading the server configuration. It must be in
  * the same directory as the server source.
  * @param[in] request_processor The function to be used to process each accepted request.
  * @return An initialized #Server, ready to be started with server_start(), or \a NULL if any error occurs.
  */
 Server *
-server_init(char *config_filename, SERVERCMD (*request_processor)(int socket, const struct _srvutils *utils));
+server_init(char *proj_root, SERVERCMD (*request_processor)(int socket, const struct _srvutils *utils));
 
 /**
  * @brief Frees all the associated memory of the provided #Server

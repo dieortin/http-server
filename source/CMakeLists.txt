@@ -5,6 +5,8 @@ set(CMAKE_C_STANDARD 11)
 
 find_package(Threads)
 
+find_library(librt rt)
+
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -g")
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=leak -g")
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=thread -g")
@@ -35,7 +37,6 @@ add_subdirectory(uthash)
 
 target_link_libraries(mimetable uthash)
 
-
 add_executable(practica1 core/src/main.c)
 target_include_directories(practica1 PUBLIC core/include httputils httpserver mimetable queue
         readconfig server uthash)
@@ -47,5 +48,3 @@ target_link_libraries(queue_test queue)
 
 add_executable(mimetable_test test/mimetable_test.c)
 target_link_libraries(mimetable_test mimetable)
-
-#add_executable(readconfig_test readconfig_test.c readconfig.c readconfig.h uthash.h)
