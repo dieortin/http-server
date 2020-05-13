@@ -239,7 +239,10 @@ STATUS server_start(Server *srv) {
     config_getparam_int(&srv->config, PARAMS_PORT, &port);
     config_getparam_str(&srv->config, PARAMS_ADDRESS, &ip);
     config_getparam_str(&srv->config, PARAMS_WEBROOT, &webroot);
-    server_log(stdout, "Configuration options are:\n\taddress %s\n\tport %u\n\twebroot [%s]", ip, port, webroot);
+    server_log(stdout, "Configuration options are:");
+    server_log(stdout, "\t-> address %s", ip);
+    server_log(stdout, "\t-> port %i", port);
+    server_log(stdout, "\t-> webroot %s", webroot);
 
     if ((srv->socket_descriptor = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         server_log(stderr, "Socket creation failed");
