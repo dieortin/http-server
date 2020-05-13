@@ -18,7 +18,7 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
-#include <zconf.h>
+#include <unistd.h>
 #include <assert.h>
 
 #include "readconfig.h"
@@ -256,11 +256,7 @@ int config_getparam_str(const struct config_param **configuration, enum USER_PAR
 int parseConfig(char *filename, const struct config_param **configuration) {
     if (!filename) return -1;
 
-    char currentdir[MAX_BUFFER];
-    getcwd(currentdir, MAX_BUFFER); // Store the current working directory
-    assert(strlen(currentdir) + strlen(CONFIG_PATH) + strlen(filename) < MAX_BUFFER); // Ensure we don't overflow
-
-    FILE *configFile = fopen(strcat(currentdir, filename), "r"); // Open the configuration file
+    FILE *configFile = fopen(filename, "r"); // Open the configuration file
     if (!configFile) { // If the file couldn't be opened
         printf("Error while opening the configuration file at %s: %s\n", filename, strerror(errno));
         return -1;

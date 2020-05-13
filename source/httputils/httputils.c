@@ -428,7 +428,9 @@ int run_executable(int socket, struct httpres_headers *headers, struct request *
     unsigned long n_read = read(outfd, result, sizeof(result) / sizeof(result[0])); // Read from the pipe
 
     if (n_read > 0) { // If reading from the pipe goes well
+#if DEBUG >= 2
         utils->log(stdout, "Command output: \n%s", result);
+#endif
         return respond(socket, OK, "OK", headers, result, n_read);
     } else {
         return respond(socket, INTERNAL_ERROR, "Execution error", headers, NULL, 0);

@@ -25,6 +25,15 @@
 // Private functions
 
 /**
+ * @brief Returns an allocated string representing the absolute path of the provided directory in relation to the
+ * root folder of the project
+ * @param srv The server whose root must be used
+ * @param relative_path The relative path to that root
+ * @return Allocated string representing the absolute path (user must free it)
+ */
+char *get_absolute_path(Server *srv, const char *relative_path);
+
+/**
  * @brief Prints the passed parameters into the server log
  * @param[out] file where the output must be printed
  * @param[in] format Format string to be printed
@@ -48,7 +57,7 @@ void server_http_log(FILE *file, const char *format, ...);
 
 char *get_time_str();
 
-char *get_full_webroot(const char *webroot);
+char *get_full_webroot(const char *webroot, Server *srv);
 
 /**
  * @struct _server
@@ -69,6 +78,7 @@ struct _server {
     ///< Depending on the value returned by it, the server will continue accepting requests or stop doing so. The request
     ///< processor function must accept two parameters: an integer (the socket descriptor) and a logging function that it
     ///< can use to produce logs.
+    char *project_root; ///< Path to the root folder of the project
 };
 
 /**
@@ -82,11 +92,11 @@ struct handler_param {
 };
 
 Server *
-server_init(char *config_filename, SERVERCMD (*request_processor)(int, const struct _srvutils *)) {
+server_init(char *proj_root, SERVERCMD (*request_processor)(int, const struct _srvutils *)) {
     server_log(stdout, "Initializing server...");
 
-    if (!config_filename) {
-        server_log(stderr, "ERROR: no configuration filename provided!");
+    if (!proj_root) {
+        server_log(stderr, "ERROR: no configuration path provided!");
         return NULL;
     }
 
@@ -97,12 +107,18 @@ server_init(char *config_filename, SERVERCMD (*request_processor)(int, const str
 
     Server *srv = calloc(1, sizeof(Server));
 
+    // Store the project root folder
+    srv->project_root = strdup(proj_root);
+
     srv->request_processor = request_processor;
 
     srv->config = NULL;
 
-    if (parseConfig(config_filename, &srv->config) != EXIT_SUCCESS) {
-        server_log(stderr, "ERROR: couldn't read the configuration file %s", config_filename);
+    // Get the full path of the configuration file in relation to the project root
+    char *config_file_path = get_absolute_path(srv, CONFIG_FILENAME);
+
+    if (parseConfig(config_file_path, &srv->config) != EXIT_SUCCESS) {
+        server_log(stderr, "ERROR: couldn't read the configuration file %s", proj_root);
         free(srv);
         return NULL;
     }
@@ -115,9 +131,12 @@ server_init(char *config_filename, SERVERCMD (*request_processor)(int, const str
         return NULL;
     }
 
-    server_log(stdout, "Parsing the MIME file (%s)...", mimefile);
-    if (mime_add_from_file(mimefile) == ERROR) {
-        server_log(stderr, "ERROR: could not add MIME types from file (%s)", mimefile);
+    // Get the full path of the mime file in relation to the project root
+    char *mime_file_path = get_absolute_path(srv, mimefile);
+
+    server_log(stdout, "Parsing the MIME file (%s)...", mime_file_path);
+    if (mime_add_from_file(mime_file_path) == ERROR) {
+        server_log(stderr, "ERROR: could not add MIME types from file (%s)", mime_file_path);
         free(srv);
         return NULL;
     }
@@ -181,6 +200,7 @@ server_init(char *config_filename, SERVERCMD (*request_processor)(int, const str
 STATUS server_free(Server *srv) {
     if (!srv) return ERROR;
 
+    free(srv->project_root);
     free(srv);
     return SUCCESS;
 }
@@ -219,7 +239,10 @@ STATUS server_start(Server *srv) {
     config_getparam_int(&srv->config, PARAMS_PORT, &port);
     config_getparam_str(&srv->config, PARAMS_ADDRESS, &ip);
     config_getparam_str(&srv->config, PARAMS_WEBROOT, &webroot);
-    server_log(stdout, "Configuration options are:\n\taddress %s\n\tport %u\n\twebroot [%s]", ip, port, webroot);
+    server_log(stdout, "Configuration options are:");
+    server_log(stdout, "\t-> address %s", ip);
+    server_log(stdout, "\t-> port %i", port);
+    server_log(stdout, "\t-> webroot %s", webroot);
 
     if ((srv->socket_descriptor = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         server_log(stderr, "Socket creation failed");
@@ -246,7 +269,7 @@ STATUS server_start(Server *srv) {
 
     server_log(stdout, "Server listening on port %i", port);
 
-    char *full_webroot = get_full_webroot(webroot);
+    char *full_webroot = get_full_webroot(webroot, srv);
 
 #if DEBUG >= 1
     server_log(stdout, "The full path for the webroot is '%s'", full_webroot);
@@ -283,24 +306,10 @@ STATUS server_start(Server *srv) {
     //return SUCCESS;
 }
 
-char *get_full_webroot(const char *webroot) {
+char *get_full_webroot(const char *webroot, Server *srv) {
     if (!webroot) return NULL;
 
-    // Get the current working directory
-    // When buf == NULL, getcwd allocates the buffer
-    // When size == 0, getcwd allocates as much space as needed
-    char *cwd = getcwd(NULL, 0);
-
-    // Calculate the size needed for the entire webroot plus the null terminator
-    size_t webroot_full_size = strlen(cwd) + strlen(webroot) + 1;
-
-    // Allocate enough memory for the full webroot
-    char *full_webroot = calloc(sizeof(char), webroot_full_size);
-
-    // Concatenate the current working directory and the webroot to form the full webroot
-    strcat(full_webroot, cwd);
-    strcat(full_webroot, webroot);
-    free(cwd);
+    char *full_webroot = get_absolute_path(srv, webroot);
 
     return full_webroot;
 }
@@ -407,4 +416,18 @@ char *get_time_str() {
     timestr[strlen(timestr) - 1] = 0; // Remove the newline at the end
 
     return timestr;
+}
+
+char *get_absolute_path(Server *srv, const char *relative_path) {
+    if (!relative_path) return NULL;
+    // Calculate the space needed for the full path and null terminator
+    size_t pathlen = snprintf(NULL, 0, "%s%s", srv->project_root, relative_path) + 1;
+
+    // Allocate space for the mime path
+    char *fullpath = malloc(sizeof(char) * pathlen);
+
+    // Print the mime path
+    snprintf(fullpath, pathlen, "%s%s", srv->project_root, relative_path);
+
+    return fullpath;
 }

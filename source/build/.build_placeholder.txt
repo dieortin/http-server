@@ -1,0 +1,1 @@
+This file acts as a placeholder to maintain the build folder in the git repository.

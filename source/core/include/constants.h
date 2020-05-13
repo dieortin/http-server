@@ -9,8 +9,8 @@
 
 #define DEBUG 0 ///< Sets the level of debugging logs. A value of 0 disables them.
 
-#define CONFIG_PATH "/server/server.cfg"    ///< Path of the folder where the configuration file is located
-///< relative to the main server directory
+#define CONFIG_PATH "../../" ///< Path of the root folder of the project where the configuration files reside
+///< relative to the "bin" directory where the project is built by default
 
 #define MAX_CONFIG_STR 512 ///< Maximum size of a configuration parameter string
 

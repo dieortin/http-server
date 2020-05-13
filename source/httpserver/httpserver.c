@@ -127,7 +127,6 @@ int resolution_get(int socket, struct request *request, struct _srvutils *utils)
     return ret;
 }
 
-// TODO: Implement
 int resolution_post(int socket, struct request *request, struct _srvutils *utils) {
     //create header structure
     struct httpres_headers *headers = create_header_struct();
@@ -187,7 +186,6 @@ enum EXECUTABLE executable_type(const char *path) {
     if (!ext) return -1; // If there's no extension
     ext++; // skip the '.'
 
-    // TODO: Move away from hardcoded extensions
     // Return the executable type, or -1 if it's not an executable file
     if (strcmp(ext, "py") == 0) {
         return PYTHON;
