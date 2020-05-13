@@ -1,5 +1,7 @@
 import sys
 import signal
+import urllib.parse
+
 TIMEOUT = 1 # seconds
 signal.signal(signal.SIGALRM, input)
 signal.alarm(TIMEOUT)
@@ -10,15 +12,17 @@ print("Script Python Conversor\n")
 
 print("Recibido por STDIN: ")
 try:
-	kel = sys.stdin[1] + 273
-    print(kel)
+	dic = urllib.parse.parse_qs(sys.stdin[1])
+	kel = int(dic['var'][0]) + 273
+	print(kel)
 except:
     ignorar = True
 print("Fin de datos")
 
 
 print("\n\nRecibido por ARGV:")
-kel = sys.argv[1] + 273
+dic = urllib.parse.parse_qs(sys.argv[1])
+kel = int(dic['var'][0]) + 273
 print(kel)
 print("Fin de datos")
 
