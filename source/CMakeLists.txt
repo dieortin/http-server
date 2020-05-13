@@ -5,8 +5,6 @@ set(CMAKE_C_STANDARD 11)
 
 find_package(Threads)
 
-find_library(librt rt)
-
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -g")
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=leak -g")
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=thread -g")
