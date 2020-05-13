@@ -18,7 +18,7 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
-#include <zconf.h>
+#include <unistd.h>
 #include <assert.h>
 
 #include "readconfig.h"

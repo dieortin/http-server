@@ -9,7 +9,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <zconf.h>
+#include <unistd.h>
 
 #define TEST_MIMEFILE_LOCATION "/server/test/mimetest.tsv"
 #define MAX_DIR 400
