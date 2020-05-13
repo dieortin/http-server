@@ -13,6 +13,10 @@ both HTML and Latex will be created (you can even view this html documentation u
 project)
 
 ## First steps
+### Dependencies
+* CMake 3.15 or higher
+* libpthread
+
 ### Building the project
 
 Starting in the root folder of the project (practica-1 if you just cloned the repository),
