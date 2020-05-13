@@ -33,8 +33,6 @@ add_subdirectory(server)
 
 add_subdirectory(uthash)
 
-target_link_libraries(mimetable uthash)
-
 add_executable(practica1 core/src/main.c)
 target_include_directories(practica1 PUBLIC core/include httputils httpserver mimetable queue
         readconfig server uthash)
