@@ -434,6 +434,8 @@ int run_executable(int socket, struct httpres_headers *headers, struct request *
 #if DEBUG >= 2
         utils->log(stdout, "Command output: \n%s", result);
 #endif
+        // Always set html content type, as requested by the specs
+        set_header(headers, "Content-Type", "text/html");
         return respond(socket, OK, "OK", headers, result, n_read);
     } else {
         return respond(socket, INTERNAL_ERROR, "Execution error", headers, NULL, 0);
