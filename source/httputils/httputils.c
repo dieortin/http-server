@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <assert.h>
+#include <wait.h>
 
 #define CRLF_LEN strlen("\r\n") ///< Length of the string containing the response code (always three digit)
 
@@ -424,6 +425,8 @@ int run_executable(int socket, struct httpres_headers *headers, struct request *
     close(infd);
 
     char result[MAX_BUFFER + 1]; // Buffer to hold the result of the execution
+
+    waitpid(pid, NULL, 0); // Wait for the script to finish execution
 
     unsigned long n_read = read(outfd, result, sizeof(result) / sizeof(result[0])); // Read from the pipe
 
