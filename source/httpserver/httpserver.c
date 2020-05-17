@@ -48,7 +48,7 @@ SERVERCMD processHTTPRequest(int socket, struct _srvutils *utils) {
         case PARSE_OK:
             routecode = route(socket, request, utils);
             if (request->querystring) {
-                utils->log(stdout, "%s %s%s %i", request->method, request->path, request->querystring, routecode);
+                utils->log(stdout, "%s %s?%s %i", request->method, request->path, request->querystring, routecode);
             } else {
                 utils->log(stdout, "%s %s %i", request->method, request->path, routecode);
             }
