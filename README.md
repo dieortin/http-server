@@ -1,16 +1,12 @@
 Performant HTTP server in C
 ================
 
-*Documentation in progress*
-
 This project aims to build a high-performance HTTP server in C. It's built in an extremely
 modular fashion, and makes use of a thread pool to achieve higher performance.
 
-This is just an overview of the project, and a complete and detailed documentation can be
-obtained using doxygen. To obtain it, just execute the command `$ doxygen doxygen-conf` from 
-the root folder of the project, and a `docs` folder containing the full documentation in
-both HTML and Latex will be created (you can even view this html documentation using this
-project)
+This is just an overview of the project, and more complete documentation can be
+found in the wiki in this repository, as well as instructions on how to generate
+the full documentation of this project.
 
 ## First steps
 ### Dependencies
@@ -57,30 +53,3 @@ The server currently supports the current options:
 The server parses this configuration file using a custom built module called *readconfig*, which
 makes it very easy to add new supported parameters to the server, or different parameter types.
 
-### Changing log verbosity
-The server automatically logs useful data together with the date and time when it was logged.
-For example, an HTTP request produces an output like this one:
-
-```Wed May 13 18:54:19 2020 [HTTP] GET /media/animacion.gif 200```
-
-Logs use color to make it easier to see which module or thread the message is coming from.
-
-To increase the level of verbosity provided by logging functions, you can increase the
-`DEBUG` macro in the header file located in `source/core/include/constants.h`. Keep in
-mind 2 would be a high value, and the logs will get filled with a lot of information for
-each single event.
-
-## Project structure
-The project is composed by several different modules, each with a clear function. This 
-increases maintainability and reusability of the code.
-
-* httputils: Provides functions for dealing and responding to HTTP requests.
-* mimetable: Provides functions for storing and retrieving MIME type associations in a performant way
-* queue: Provides a simple thread-safe queue implementation
-* readconfig: Provides functions to read a configuration file and retrieve configuration
-options in a performant way
-* server: Provides a general purpose TCP server
-* httpserver: Provides the specific implementation of this server using httputils
-
-There is also a `core` directory, containing general files for the project (one being
-the main file) and a `test` directory, which contains tests for some of the modules.
