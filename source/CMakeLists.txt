@@ -33,10 +33,10 @@ add_subdirectory(server)
 
 add_subdirectory(uthash)
 
-add_executable(practica1 core/src/main.c)
-target_include_directories(practica1 PUBLIC core/include httputils httpserver mimetable queue
+add_executable(http-server core/src/main.c)
+target_include_directories(http-server PUBLIC core/include httputils httpserver mimetable queue
         readconfig server uthash)
-target_link_libraries(practica1 ${CMAKE_THREAD_LIBS_INIT} httpserver)
+target_link_libraries(http-server ${CMAKE_THREAD_LIBS_INIT} httpserver)
 
 
 add_executable(queue_test test/queue_test.c)
