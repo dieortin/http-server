@@ -15,13 +15,12 @@ the full documentation of this project.
 
 ### Building the project
 
-Starting in the root folder of the project (practica-1 if you just cloned the repository),
+Starting in the root folder of the project (http-server if you just cloned the repository),
 just run the following terminal commands:
 
 ```bash
-$ cd source/build
-$ cmake ..
-$ make practica1
+$ cmake -S source -B build
+$ cmake --build build/ --config Release
 ```
 
 This creates a build system adapted for your computer using cmake in the `build directory,
