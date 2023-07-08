@@ -33,10 +33,10 @@ add_subdirectory(server)
 
 add_subdirectory(uthash)
 
-add_executable(http-server core/src/main.c)
-target_include_directories(http-server PUBLIC core/include httputils httpserver mimetable queue
+add_executable(server-main core/src/main.c)
+target_include_directories(server-main PUBLIC core/include httputils httpserver mimetable queue
         readconfig server uthash)
-target_link_libraries(http-server ${CMAKE_THREAD_LIBS_INIT} httpserver)
+target_link_libraries(server-main ${CMAKE_THREAD_LIBS_INIT} httpserver)
 
 
 add_executable(queue_test test/queue_test.c)
